@@ -7,6 +7,7 @@
     "resolveJsonModule": true,
     "noImplicitAny": false,
     "lib": ["DOM", "ES2020"],
+    "isolatedModules": true,
 
     /* Bundler mode */
     "moduleResolution": "Node",
