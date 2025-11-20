@@ -1,7 +1,7 @@
 {
-  "name": "passman",
+  "name": "cryptono",
   "version": "1.0.0",
-  "description": "This project will be an open-source password menager in an chrome extension",
+  "description": "This project will be an open-source password manager in an chrome extension",
   "main": "index.js",
   "scripts": {
    "dev": "vite",
@@ -11,16 +11,16 @@
 
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ArturCharylo/PassMan.git"
+    "url": "git+https://github.com/ArturCharylo/Cryptono.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/ArturCharylo/PassMan/issues"
+    "url": "https://github.com/ArturCharylo/Cryptono/issues"
   },
-  "homepage": "https://github.com/ArturCharylo/PassMan#readme",
+  "homepage": "https://github.com/ArturCharylo/C#readme",
   "devDependencies": {
     "@types/node": "^24.10.1",
     "ts-node": "^10.9.2",
