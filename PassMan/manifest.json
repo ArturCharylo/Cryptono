@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "ColorSwap",
+  "version": "1.0",
+  "description": "Change the background color of the current tab to light blue.",
+  "permissions": ["scripting", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ColorSwap"
+  }
+}
