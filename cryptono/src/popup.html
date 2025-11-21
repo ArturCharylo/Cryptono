@@ -2,16 +2,22 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <link rel="stylesheet" href="popupStyle.css">
     <title>Cryptono</title>
     <style>
         body { width: 300px; padding: 16px; }
     </style>
 </head>
 <body>
-    <h1>Cryptono</h1>
-    <p>Manage your passwords securely</p>
-    <button id="test-btn">Test</button>
-    
+    <h1 class="extensionTitle">Cryptono</h1>
+    <p class="extensionSub">Manage your passwords securely</p>
+    <form class="login-form" onsubmit="">
+        <label for="username">Username:</label>
+        <input type="text" placeholder="Username" id="username" name="username"/><br/>
+        <label for="username">Password:</label>
+        <input type="password" placeholder="Username" id="username" name="username"/><br/>
+        <input type="submit" value="Login"/>
+    </form>
     <script src="popup.js"></script>
 </body>
 </html>

@@ -8,8 +8,9 @@ export default defineConfig({
       input: {
         background: resolve(__dirname, 'src/background.ts'),
         contentScript: resolve(__dirname, 'src/contentScript.ts'),
-        popup: resolve(__dirname, 'src/popup.ts'), // ← DODAJ TUTAJ
-        popupHTML: resolve(__dirname, 'src/popup.html')
+        popup: resolve(__dirname, 'src/popup.ts'),
+        popupHTML: resolve(__dirname, 'src/popup.html'),
+        popupStyle: resolve(__dirname, 'src/styles/popup.css')
       },
       output: {
         entryFileNames: '[name].js',

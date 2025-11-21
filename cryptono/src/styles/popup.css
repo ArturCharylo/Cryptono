@@ -1,0 +1,22 @@
+.extensionTitle {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    text-align: center;
+    align-self: center;
+    color: #656666;
+}
+.extensionSub {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    text-align: center;
+    align-self: center;
+    color: #afafae;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+}
