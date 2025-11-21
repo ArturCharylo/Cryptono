@@ -8,7 +8,8 @@ export default defineConfig({
       input: {
         background: resolve(__dirname, 'src/background.ts'),
         contentScript: resolve(__dirname, 'src/contentScript.ts'),
-        popup: resolve(__dirname, 'src/popup.html')
+        popup: resolve(__dirname, 'src/popup.ts'), // ← DODAJ TUTAJ
+        popupHTML: resolve(__dirname, 'src/popup.html')
       },
       output: {
         entryFileNames: '[name].js',
@@ -20,21 +21,18 @@ export default defineConfig({
   },
   plugins: [
     {
-      name: 'copy-files',
+      name: 'copy-extension-files',
       closeBundle() {
-        // Copy manifest.json
-        const manifestSrc = resolve(__dirname, 'src/manifest.json')
-        const manifestDest = resolve(__dirname, 'dist/manifest.json')
-        if (fs.existsSync(manifestSrc)) {
-          fs.copyFileSync(manifestSrc, manifestDest)
-        }
+        const filesToCopy = ['manifest.json', 'popup.html']
         
-        // Copy popup.html
-        const popupSrc = resolve(__dirname, 'src/popup.html')
-        const popupDest = resolve(__dirname, 'dist/popup.html')
-        if (fs.existsSync(popupSrc)) {
-          fs.copyFileSync(popupSrc, popupDest)
-        }
+        filesToCopy.forEach(file => {
+          const src = resolve(__dirname, 'src', file)
+          const dest = resolve(__dirname, 'dist', file)
+          if (fs.existsSync(src)) {
+            fs.copyFileSync(src, dest)
+            console.log(`✓ ${file} copied to dist/`)
+          }
+        })
       }
     }
   ]
