@@ -36,7 +36,7 @@ export default defineConfig({
     {
       name: 'copy-extension-files',
       closeBundle() {
-        const filesToCopy = ['manifest.json', 'popup.html']
+        const filesToCopy = ['manifest.json', 'popup.html', 'passwords.html']
         
         filesToCopy.forEach(file => {
           const src = resolve(__dirname, 'src', file)
