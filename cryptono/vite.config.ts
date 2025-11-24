@@ -10,6 +10,7 @@ export default defineConfig({
         contentScript: resolve(__dirname, 'src/contentScript.ts'),
         popup: resolve(__dirname, 'src/pages/popup/popup.ts'),
         main: resolve(__dirname, 'src/main.ts'),
+        validation: resolve(__dirname, 'src/validation/validate.ts'),
       },
       output: {
         entryFileNames: '[name].js',
