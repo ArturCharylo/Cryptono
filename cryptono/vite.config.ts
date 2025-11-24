@@ -6,9 +6,9 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        background: resolve(__dirname, 'src/background.ts'),
+        background: resolve(__dirname, 'src/background/background.ts'),
         contentScript: resolve(__dirname, 'src/contentScript.ts'),
-        popup: resolve(__dirname, 'src/popup.ts'),
+        popup: resolve(__dirname, 'src/pages/popup/popup.ts'),
         main: resolve(__dirname, 'src/main.ts'),
       },
       output: {
@@ -37,11 +37,11 @@ export default defineConfig({
     {
       name: 'copy-extension-files',
       closeBundle() {
-        const filesToCopy = ['manifest.json', 'popup.html', 'passwords.html']
+        const filesToCopy = ['manifest.json', 'pages/popup/popup.html', 'pages/passwords/passwords.html']
         
         filesToCopy.forEach(file => {
           const src = resolve(__dirname, 'src', file)
-          const dest = resolve(__dirname, 'dist', file)
+          const dest = resolve(__dirname, 'dist', file.split('/').pop()!)
           if (fs.existsSync(src)) {
             fs.copyFileSync(src, dest)
             console.log(`✓ ${file} copied to dist/`)
