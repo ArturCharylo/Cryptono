@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="styles/popup.css">
+    <title>Cryptono</title>
+    <style>
+        body { 
+            width: 350px;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">🔒</div>
+                <h1 class="extensionTitle">Cryptono</h1>
+            </div>
+            <p class="extensionSub">Your vault, secured</p>
+        </div>
+
+        <form class="login-form" id="login-form" name="login-form">
+            <div class="input-group">
+                <label for="username">Username</label>
+                <input type="text" placeholder="Enter your username" id="username" name="username" class="form-input"/>
+            </div>
+            
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" placeholder="Enter your password" id="password" name="password" class="form-input"/>
+            </div>
+
+            <button type="submit" class="login-btn">
+                <span class="btn-text">Unlock Vault</span>
+                <div class="btn-loader" style="display: none;">
+                    <div class="spinner"></div>
+                </div>
+            </button>
+        </form>
+
+        <div class="footer">
+            <p class="security-note">🔐 Encrypted & Secure</p>
+        </div>
+    </div>
+    <script type="module" src="popup.js"></script>
+</body>
+</html>
