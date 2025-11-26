@@ -11,6 +11,9 @@ export default defineConfig({
         popup: resolve(__dirname, 'src/pages/popup/popup.ts'),
         main: resolve(__dirname, 'src/main.ts'),
         validation: resolve(__dirname, 'src/validation/validate.ts'),
+        login: resolve(__dirname, 'src/pages/login/login.ts'),
+        register: resolve(__dirname, 'src/pages/register/register.ts'),
+        passwords: resolve(__dirname, 'src/pages/passwords/passwords.ts')
       },
       output: {
         entryFileNames: '[name].js',
@@ -38,7 +41,7 @@ export default defineConfig({
     {
       name: 'copy-extension-files',
       closeBundle() {
-        const filesToCopy = ['manifest.json', 'pages/popup/popup.html', 'pages/passwords/passwords.html']
+        const filesToCopy = ['manifest.json', 'pages/popup/popup.html', 'pages/passwords/passwords.html', 'pages/register/register.html', 'pages/login/login.html']
         
         filesToCopy.forEach(file => {
           const src = resolve(__dirname, 'src', file)
