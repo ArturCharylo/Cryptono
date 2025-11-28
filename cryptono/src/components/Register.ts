@@ -1,4 +1,4 @@
-import loginValidation from '../validation/validate';
+import { registerValidation} from '../validation/validate';
 
 export class Register {
     navigate: (path: string) => void;
@@ -73,6 +73,7 @@ export class Register {
             event.preventDefault();
             const username = (document.getElementById('username') as HTMLInputElement)?.value;
             const password = (document.getElementById('password') as HTMLInputElement)?.value;
+            const email = (document.getElementById('email') as HTMLInputElement)?.value;
             const confirmPassword = (document.getElementById('confirm_password') as HTMLInputElement)?.value;
             let error = '';
 
@@ -94,7 +95,7 @@ export class Register {
             }
 
             try {
-                const registrationSuccess = await this.authorize(username, password);
+                const registrationSuccess = await this.authorize(email, username, password);
 
                 if (registrationSuccess) {
                     this.navigate('/passwords');
@@ -114,15 +115,15 @@ export class Register {
         });
     }
 
-    async authorize(username: string, password: string): Promise<boolean> {
+    async authorize(email: string, username: string, password: string): Promise<boolean> {
         return new Promise((resolve) => {
             setTimeout(() => {
                 let error = '';
-                if (loginValidation(username, password).every(v => v.value.match(v.regex))){
+                if (registerValidation(email, username, password).every(v => v.value.match(v.regex))){
                     resolve(true);
                 }
                 else{
-                    loginValidation(username, password).forEach(v => {
+                    registerValidation(email, username, password).forEach(v => {
                         if (!v.value.match(v.regex)){
                             error += v.message + '\n';
                         }

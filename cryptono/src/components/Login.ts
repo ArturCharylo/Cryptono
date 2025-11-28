@@ -1,4 +1,4 @@
-import loginValidation from '../validation/validate';
+import { loginValidation } from '../validation/validate';
 
 export class Login {
     navigate: (path: string) => void;
