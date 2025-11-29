@@ -34,7 +34,7 @@ The goal of this project is to provide a simple, privacy-friendly tool for stori
 ## 📦 Installation (from source)
 
 ```bash
-git clone https://github.com/your-username/cryptono.git
+git clone https://github.com/ArturCharylo/cryptono.git
 cd cryptono
 ```
 
