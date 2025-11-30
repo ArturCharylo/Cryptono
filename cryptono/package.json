@@ -4,7 +4,7 @@
   "description": "This project will be an open-source password manager in an chrome extension",
   "main": "index.js",
   "scripts": {
-    "build": "vite build && copy src\\manifest.json dist\\",
+    "build": "vite build",
     "dev": "vite"
   },
   "repository": {

@@ -8,12 +8,8 @@ export default defineConfig({
       input: {
         background: resolve(__dirname, 'src/background/background.ts'),
         contentScript: resolve(__dirname, 'src/contentScript.ts'),
-        popup: resolve(__dirname, 'src/pages/popup/popup.ts'),
-        main: resolve(__dirname, 'src/main.ts'),
-        validation: resolve(__dirname, 'src/validation/validate.ts'),
-        login: resolve(__dirname, 'src/pages/login/login.ts'),
-        register: resolve(__dirname, 'src/pages/register/register.ts'),
-        passwords: resolve(__dirname, 'src/pages/passwords/passwords.ts')
+        popup: resolve(__dirname, 'src/popup/popup.ts'),
+        validation: resolve(__dirname, 'src/validation/validate.ts')
       },
       output: {
         entryFileNames: '[name].js',
@@ -41,7 +37,7 @@ export default defineConfig({
     {
       name: 'copy-extension-files',
       closeBundle() {
-        const filesToCopy = ['manifest.json', 'pages/passwords/passwords.html', 'pages/register/register.html', 'pages/login/login.html']
+        const filesToCopy = ['manifest.json']
         
         filesToCopy.forEach(file => {
           const src = resolve(__dirname, 'src', file)
@@ -53,12 +49,13 @@ export default defineConfig({
         })
 
         // Handle popup.html separately to replace .ts with .js
-        const popupHtmlSrc = resolve(__dirname, 'src/pages/popup/popup.html')
+        const popupHtmlSrc = resolve(__dirname, 'src/popup/popup.html')
         const popupHtmlDest = resolve(__dirname, 'dist/popup.html')
         if (fs.existsSync(popupHtmlSrc)) {
             let content = fs.readFileSync(popupHtmlSrc, 'utf-8')
             content = content.replace('src="popup.ts"', 'src="popup.js"')
-            content = content.replace('href="../../styles/popup.css"', 'href="styles/popup.css"')
+            content = content.replace('href="../styles/popup.css"', 'href="styles/popup.css"')
+            content = content.replace('href="../styles/App.css"', 'href="styles/App.css"')
             fs.writeFileSync(popupHtmlDest, content)
             console.log(`✓ popup.html copied and transformed to dist/`)
         }
