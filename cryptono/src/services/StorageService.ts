@@ -1,6 +1,7 @@
 // src/services/StorageService.ts
 import type { VaultItem } from '../types/index';
 
+// Those variables will be stored as .env later on as the project grows, now it's just for testing purposes 
 const DB_NAME = 'CryptonoDB';
 const STORE_NAME = 'vault';
 const DB_VERSION = 1;

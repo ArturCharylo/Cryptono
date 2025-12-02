@@ -54,8 +54,12 @@ export default defineConfig({
         if (fs.existsSync(popupHtmlSrc)) {
             let content = fs.readFileSync(popupHtmlSrc, 'utf-8')
             content = content.replace('src="popup.ts"', 'src="popup.js"')
+            
+            // Transform CSS paths
             content = content.replace('href="../styles/popup.css"', 'href="styles/popup.css"')
             content = content.replace('href="../styles/App.css"', 'href="styles/App.css"')
+            content = content.replace('href="../styles/passwords.css"', 'href="styles/passwords.css"')
+            
             fs.writeFileSync(popupHtmlDest, content)
             console.log(`✓ popup.html copied and transformed to dist/`)
         }
