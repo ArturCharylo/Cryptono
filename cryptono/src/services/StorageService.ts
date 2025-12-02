@@ -1,0 +1,67 @@
+// src/services/StorageService.ts
+import type { VaultItem } from '../types/index';
+
+const DB_NAME = 'CryptonoDB';
+const STORE_NAME = 'vault';
+const DB_VERSION = 1;
+
+export class StorageService {
+    private db: IDBDatabase | null = null;
+
+    // Open database connection
+    async init(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                this.db = request.result;
+                resolve();
+            };
+
+            // This code runs only the first time
+            request.onupgradeneeded = (event) => {
+                const db = (event.target as IDBOpenDBRequest).result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    // Create store with main key
+                    db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                }
+            };
+        });
+    }
+
+    // Adding new item
+    async addItem(item: VaultItem): Promise<void> {
+        await this.ensureInit();
+        return new Promise((resolve, reject) => {
+            const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.add(item);
+
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Get all items
+    async getAllItems(): Promise<VaultItem[]> {
+        await this.ensureInit();
+        return new Promise((resolve, reject) => {
+            const transaction = this.db!.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.getAll();
+
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Helper function to ensure that the database is active and open
+    private async ensureInit() {
+        if (!this.db) {
+            await this.init();
+        }
+    }
+}
+
+export const storageService = new StorageService();
