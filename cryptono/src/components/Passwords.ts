@@ -22,7 +22,7 @@ export class Passwords {
                     <h2 style="text-align:center;">Your Vault</h2>
                     
                     <div style="text-align: right; margin-bottom: 10px;">
-                        <button id="add-test-btn" class="login-btn">+ Add Test</button>
+                        <button id="add-test-btn" class="login-btn add-item">+ Add Test</button>
                     </div>
 
                     <div class="table-wrapper">
