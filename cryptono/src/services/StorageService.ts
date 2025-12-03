@@ -31,6 +31,22 @@ export class StorageService {
         });
     }
 
+    async createUser(username: string, masterPass: string, repeatPass: string): Promise<void> {
+        if (masterPass !== repeatPass) {
+            return Promise.reject(new Error('Passwords do not match'));
+        }
+        await this.ensureInit();
+        return new Promise((resolve, reject) => {
+            const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const user = { id: 'user', username, masterPass };
+            const request = store.add(user);
+
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        })
+    }
+
     // Adding new item
     async addItem(item: VaultItem): Promise<void> {
         await this.ensureInit();
