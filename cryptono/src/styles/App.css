@@ -10,12 +10,21 @@
     box-sizing: border-box;
 }
 
+:root {
+    /* Global variables for easier future modifications */
+    --app-bg-gradient: linear-gradient(135deg, rgba(0, 0, 0, 0.911) 0%, rgba(20, 18, 18, 0.942) 100%);
+    --glass-bg-dark: rgba(20, 20, 20, 0.3); /* dark, matt background */
+    --glass-border-light: rgba(255, 255, 255, 0.15);
+    --glass-border-highlight: rgba(255, 255, 255, 0.3);
+    --glass-blur: blur(20px) saturate(110%); /* blur to imitate glass effect */
+    --glow-color-subtle: rgba(117, 227, 255, 0.3); /* Light, delicate glow */
+}
 
 body {
     margin: 0;
     padding: 0;
     width: fit-content;
-    background: linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(43, 42, 42, 0.4) 100%);
+    background: var(--app-bg-gradient);
     background-attachment: fixed; 
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     color: white;
