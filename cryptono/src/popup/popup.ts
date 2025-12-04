@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     router.addRoute('/passwords', () => new Passwords(navigate).render(), () => new Passwords(navigate).afterRender());
 
     // Default route
-    if (cookieService.getCookie('authToken') === null) {
+    if (cookieService.getCookie('authToken')) {
         router.navigate('/login');
     }
     else {

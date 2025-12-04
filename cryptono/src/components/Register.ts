@@ -1,4 +1,5 @@
-import { registerValidation} from '../validation/validate';
+import { registerValidation } from '../validation/validate';
+import { storageService } from '../services/StorageService';
 
 export class Register {
     navigate: (path: string) => void;
@@ -75,8 +76,8 @@ export class Register {
             const password = (document.getElementById('password') as HTMLInputElement)?.value;
             const email = (document.getElementById('email') as HTMLInputElement)?.value;
             const confirmPassword = (document.getElementById('confirm_password') as HTMLInputElement)?.value;
+            
             let error = '';
-
             if (!username || !password || !confirmPassword){
                 error = "Please fill in all the fields"
             }
@@ -88,25 +89,22 @@ export class Register {
                 return;
             }
 
-            // Set loading State
             if (registerBtn) {
                 registerBtn.classList.add('loading');
                 registerBtn.disabled = true;
             }
 
             try {
-                const registrationSuccess = await this.authorize(email, username, password);
+                const registrationSuccess = await this.authorize(email, username, password, confirmPassword);
 
                 if (registrationSuccess) {
-                    this.navigate('/passwords');
-                } else {
-                    alert('Registration failed');
+                    alert('Registration successful! You can now login.');
+                    this.navigate('/login');
                 }
             }
             catch (error) {
-                alert('Registration failed: ' + error);
+                alert('Registration failed: ' + (error as Error).message);
             } finally {
-                // Reset loading state
                 if (registerBtn) {
                     registerBtn.classList.remove('loading');
                     registerBtn.disabled = false;
@@ -115,23 +113,22 @@ export class Register {
         });
     }
 
-    async authorize(email: string, username: string, password: string): Promise<boolean> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                let error = '';
-                if (registerValidation(email, username, password).every(v => v.value.match(v.regex))){
-                    resolve(true);
-                }
-                else{
-                    registerValidation(email, username, password).forEach(v => {
-                        if (!v.value.match(v.regex)){
-                            error += v.message + '\n';
-                        }
-                    });
-                    if (error) alert(error);
-                    resolve(false);
-                }
-            }, 1000);
-        });
+    async authorize(email: string, username: string, password: string, repeatPass: string): Promise<boolean> {
+        // Regex
+        const validations = registerValidation(email, username, password);
+        const isValid = validations.every(v => v.value.match(v.regex));
+
+        if (!isValid) {
+            let errorMsg = '';
+            validations.forEach(v => {
+                if (!v.value.match(v.regex)) errorMsg += v.message + '\n';
+            });
+            throw new Error(errorMsg);
+        }
+
+        // Create user in indexedDB
+        await storageService.createUser(username, password, repeatPass);
+        
+        return true;
     }
 }

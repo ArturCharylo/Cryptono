@@ -102,9 +102,11 @@ export class Login {
             setTimeout(() => {
                 if (loginValidation(username, password).every(v => v.value.match(v.regex))){
                     storageService.Login(username, password)
-                        .then(() => resolve(true))
-                        .catch(() => resolve(false));
-                    resolve(true);
+                    .then(() => resolve(true))  // Successful login
+                    .catch((err) => {
+                        console.error(err);
+                        resolve(false); // Error: wrond password or server error
+                    });
                 }
                 else{
                     loginValidation(username, password).forEach(v => {

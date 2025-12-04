@@ -38,37 +38,61 @@ export class StorageService {
             return Promise.reject(new Error('Passwords do not match'));
         }
         await this.ensureInit();
+
+        // Crypto part: create validation token
+        const validationToken = await cryptoService.encrypt(masterPass, "VALID_USER");
+
         return new Promise((resolve, reject) => {
             const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
             const store = transaction.objectStore(STORE_NAME);
-            const user = { id: 'user', username, masterPass };
-            const request = store.add(user);
+            
+            // Save validation token along with username
+            const user = { id: 'user', username, validationToken }; 
+            const request = store.put(user); // use put to allow updates if user already exists
 
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
         })
     }
 
-    async Login(username:string, masterPass: string): Promise<void>{
-        const master = cryptoService.encrypt(masterPass, masterPass);
+    async Login(username: string, masterPass: string): Promise<void>{
         await this.ensureInit();
         return new Promise((resolve, reject) => {
             const transaction = this.db!.transaction([STORE_NAME], 'readonly');
             const store = transaction.objectStore(STORE_NAME);
             const request = store.get('user');
 
-            const user = request.result;
-            if (user && user.username === username && user.masterPass === master) {
-                
-                const token = cookieService.setCookie(username);
+            request.onsuccess = async () => {
+                const user = request.result;
+                if (!user) {
+                    reject(new Error('User not found'));
+                    return;
+                }
 
-                console.log("Zalogowano i ustawiono cookie:", token);
-                resolve();
+                if (user.username !== username) {
+                    reject(new Error('Invalid username'));
+                    return;
+                }
 
-            } else {
-                reject(new Error('Invalid username or password'));
-            }
+                // Verification by decrypting validation token
+                try {
+                    const decryptedCheck = await cryptoService.decrypt(masterPass, user.validationToken);
+                    
+                    if (decryptedCheck === "VALID_USER") {
+                        // Successful login
+                        const token = cookieService.setCookie(username);
+                        console.log("Zalogowano pomyślnie. Token:", token);
+                        resolve();
+                    } else {
+                        reject(new Error('Invalid password'));
+                    }
+                } catch (e) {
+                    // Decrypt throws error on wrong password
+                    reject(new Error('Invalid password'));
+                }
+            };
             
+            request.onerror = () => reject(new Error('Database error'));
         })
     }
 
