@@ -5,6 +5,7 @@ import { Router } from '../utils/router';
 import { Login } from '../components/Login';
 import { Register } from '../components/Register';
 import { Passwords } from '../components/Passwords';
+import { cookieService } from '../services/CookieService';
 
 document.addEventListener('DOMContentLoaded', () => {
     const root = document.getElementById('app') as HTMLElement;
@@ -20,5 +21,10 @@ document.addEventListener('DOMContentLoaded', () => {
     router.addRoute('/passwords', () => new Passwords(navigate).render(), () => new Passwords(navigate).afterRender());
 
     // Default route
-    router.navigate('/');
+    if (cookieService.getCookie('authToken') === null) {
+        router.navigate('/login');
+    }
+    else {
+        router.navigate('/passwords');
+    }
 });

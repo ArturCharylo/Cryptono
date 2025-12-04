@@ -10,6 +10,8 @@ export const base64ToBuff = (base64: string): Uint8Array => {
     return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 };
 
+export const base64Url = (source: object) => btoa(JSON.stringify(source));
+
 // Encode and decode UTF-8 strings to and from Uint8Array
 export const stringToBuff = (str: string): Uint8Array => {
     const encoder = new TextEncoder();

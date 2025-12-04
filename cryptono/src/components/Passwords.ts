@@ -59,6 +59,7 @@ export class Passwords {
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
+                localStorage.removeItem('username');
                 this.navigate('/login');
             });
         }

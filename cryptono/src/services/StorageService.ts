@@ -1,5 +1,7 @@
 // src/services/StorageService.ts
 import type { VaultItem } from '../types/index';
+import { cryptoService } from './CryptoService'
+import { cookieService } from './CookieService';
 
 // Those variables will be stored as .env later on as the project grows, now it's just for testing purposes 
 const DB_NAME = 'CryptonoDB';
@@ -44,6 +46,29 @@ export class StorageService {
 
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
+        })
+    }
+
+    async Login(username:string, masterPass: string): Promise<void>{
+        const master = cryptoService.encrypt(masterPass, masterPass);
+        await this.ensureInit();
+        return new Promise((resolve, reject) => {
+            const transaction = this.db!.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get('user');
+
+            const user = request.result;
+            if (user && user.username === username && user.masterPass === master) {
+                
+                const token = cookieService.setCookie(username);
+
+                console.log("Zalogowano i ustawiono cookie:", token);
+                resolve();
+
+            } else {
+                reject(new Error('Invalid username or password'));
+            }
+            
         })
     }
 

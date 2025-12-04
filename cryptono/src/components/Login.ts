@@ -1,4 +1,5 @@
 import { loginValidation } from '../validation/validate';
+import { storageService } from '../services/StorageService';
 
 export class Login {
     navigate: (path: string) => void;
@@ -100,6 +101,9 @@ export class Login {
         return new Promise((resolve) => {
             setTimeout(() => {
                 if (loginValidation(username, password).every(v => v.value.match(v.regex))){
+                    storageService.Login(username, password)
+                        .then(() => resolve(true))
+                        .catch(() => resolve(false));
                     resolve(true);
                 }
                 else{
