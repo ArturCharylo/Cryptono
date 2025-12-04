@@ -1,7 +1,6 @@
 import { base64Url } from '../utils/buffer';
 class CookieService {
 
-    // Ustawienie cookie
     setCookie(username: string) {
         // 1. Create JWT Token
         // IN future use libraries like jsrsasign or jose for proper JWT creation and signing
@@ -65,6 +64,10 @@ class CookieService {
         } else {
             console.log("Brak tokena - przekieruj do logowania");
         }
+    }
+
+    DeleteCookie(name: string){
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict; Secure`;
     }
 }
 

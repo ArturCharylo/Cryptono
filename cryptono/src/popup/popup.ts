@@ -20,11 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
     router.addRoute('/register', () => new Register(navigate).render(), () => new Register(navigate).afterRender());
     router.addRoute('/passwords', () => new Passwords(navigate).render(), () => new Passwords(navigate).afterRender());
 
-    // Default route
+    // Token -> Passwords
     if (cookieService.getCookie('authToken')) {
-        router.navigate('/login');
-    }
-    else {
         router.navigate('/passwords');
+    }
+    // NO Token -> Login
+    else {
+        router.navigate('/login');
     }
 });
