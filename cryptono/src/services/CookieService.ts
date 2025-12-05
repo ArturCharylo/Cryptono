@@ -22,7 +22,7 @@ class CookieService {
         // path=/ -> available on entire site
         // SameSite=Strict -> CSRF protectios
         // Secure -> Require Https
-        document.cookie = `authToken=${token}; path=/; max-age=3600; SameSite=Strict; Secure`;
+        document.cookie = `authToken=${token}; path=/; max-age=3600; SameSite=Strict`;
 
         return token;
     }
@@ -67,7 +67,7 @@ class CookieService {
     }
 
     DeleteCookie(name: string){
-        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict; Secure`;
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`;
     }
 }
 
