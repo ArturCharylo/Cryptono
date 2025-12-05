@@ -141,10 +141,11 @@ export class Passwords {
                 btn.addEventListener('click', (e) => {
                     const button = e.target as HTMLButtonElement;
                     const id = button.getAttribute('data-id');
-                    if (confirm("Are you sure you want to delete this record?"))
-                    storageService.deleteItem(id!).then(() => {
-                        this.loadItems();
-                    })
+                    if (confirm("Are you sure you want to delete this record?")){
+                        storageService.deleteItem(id!).then(() => {
+                            this.loadItems();
+                        })
+                    }
                 });
             });
 
