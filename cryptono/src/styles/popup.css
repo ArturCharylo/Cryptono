@@ -115,13 +115,13 @@
     padding: 14px 24px;
     border-radius: 30px;
 
-    background: linear-gradient(145deg, rgba(50, 50, 50, 0.3), rgba(20, 20, 20, 0.2));
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
 
     border: 1px solid var(--glass-border-light);
     border-top: 1px solid rgba(255, 255, 255, 0.4);
     border-left: 1px solid rgba(255, 255, 255, 0.3);
+    background: transparent;
     
     box-shadow: 
         0 4px 10px rgba(0, 0, 0, 0.2),

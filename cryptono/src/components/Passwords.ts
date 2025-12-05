@@ -42,7 +42,7 @@ export class Passwords {
                     </div>
                     
                     <div style="text-align: center; margin-top: 24px;">
-                        <button id="logout-btn" class="login-btn" style="background: transparent; border: 1px solid rgba(255,255,255,0.2);">Logout</button>
+                        <button id="logout-btn" class="login-btn" >Logout</button>
                     </div>
                 </div>
                 
