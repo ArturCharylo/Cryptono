@@ -47,7 +47,7 @@ export class StorageService {
             const store = transaction.objectStore(STORE_NAME);
             
             // Save validation token along with username
-            const user = { id: 'user', username, validationToken }; 
+            const user = { id: crypto.randomUUID, username, validationToken }; 
             const request = store.put(user); // use put to allow updates if user already exists
 
             request.onsuccess = () => resolve();
