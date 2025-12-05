@@ -1,40 +1,53 @@
 // src/services/StorageService.ts
 import type { VaultItem } from '../types/index';
-import { cryptoService } from './CryptoService'
+import { cryptoService } from './CryptoService';
 import { cookieService } from './CookieService';
 
-// Those variables will be stored as .env later on as the project grows, now it's just for testing purposes 
 const DB_NAME = 'CryptonoDB';
 const STORE_NAME = 'vault';
-const DB_VERSION = 1;
+const DB_VERSION = 2; 
 
 export class StorageService {
     private db: IDBDatabase | null = null;
 
-    // Open database connection
+    // Open DB connection if not already opened
     async init(): Promise<void> {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            const openRequest = indexedDB.open(DB_NAME, DB_VERSION);
 
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => {
-                this.db = request.result;
+            openRequest.onerror = () => {
+                console.error("Błąd otwarcia bazy:", openRequest.error);
+                reject(openRequest.error);
+            };
+
+            openRequest.onsuccess = () => {
+                this.db = openRequest.result;
                 resolve();
             };
 
-            // This code runs only the first time
-            request.onupgradeneeded = (event) => {
-                const db = (event.target as IDBOpenDBRequest).result;
-                if (!db.objectStoreNames.contains(STORE_NAME)) {
-                    // Create store with main key
-                    db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+            //This code runs if DB version is new or DB doesn't exist
+            openRequest.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+                const database = (event.target as IDBOpenDBRequest).result;
+                let objectStore: IDBObjectStore;
+
+                // Creating Object Store if it doesn't exist
+                if (!database.objectStoreNames.contains(STORE_NAME)) {
+                    objectStore = database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                } else {
+                    // If it exists, get the existing object store
+                    objectStore = (openRequest.transaction as IDBTransaction).objectStore(STORE_NAME);
+                }
+
+                // Create index on 'username' for user lookup
+                if (!objectStore.indexNames.contains('username')) {
+                    objectStore.createIndex('username', 'username', { unique: true });
                 }
             };
         });
     }
 
-    // Helper function to ensure that the database is active and open
-    private async ensureInit() {
+    // Helper function to ensure DB is initialized
+    private async ensureInit(): Promise<void> {
         if (!this.db) {
             await this.init();
         }
@@ -46,85 +59,117 @@ export class StorageService {
         }
         await this.ensureInit();
 
-        // Crypto part: create validation token
+        // encryption of validation token
         const validationToken = await cryptoService.encrypt(masterPass, "VALID_USER");
 
         return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
-            const store = transaction.objectStore(STORE_NAME);
+            if (!this.db) return reject(new Error("Database not initialized"));
+
+            const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+            const objectStore = transaction.objectStore(STORE_NAME);
             
-            // Save validation token along with username
-            const user = { id: crypto.randomUUID, username, validationToken }; 
-            const request = store.put(user); // use put to allow updates if user already exists
+            // Save user
+            const newUser = { 
+                id: crypto.randomUUID(), 
+                username: username, 
+                validationToken: validationToken 
+            }; 
+            
+            const request = objectStore.add(newUser);
 
             request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-        })
+            
+            request.onerror = () => {
+                // Handle unique constraint error for username index
+                if (request.error && request.error.name === 'ConstraintError') {
+                    reject(new Error('Username already exists'));
+                } else {
+                    reject(request.error);
+                }
+            };
+        });
     }
 
-    async Login(username: string, masterPass: string): Promise<void>{
+    async Login(username: string, masterPass: string): Promise<void> {
         await this.ensureInit();
+        
         return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction([STORE_NAME], 'readonly');
-            const store = transaction.objectStore(STORE_NAME);
-            const request = store.get('user');
+            if (!this.db) return reject(new Error("Database not initialized"));
+
+            const transaction = this.db.transaction([STORE_NAME], 'readonly');
+            const objectStore = transaction.objectStore(STORE_NAME);
+            
+            // Search user by username index
+            const usernameIndex = objectStore.index('username');
+            const request = usernameIndex.get(username);
 
             request.onsuccess = async () => {
-                const user = request.result;
-                if (!user) {
+                const userRecord = request.result;
+
+                if (!userRecord) {
                     reject(new Error('User not found'));
                     return;
                 }
 
-                if (user.username !== username) {
+                // Additional check to ensure username matches
+                if (userRecord.username !== username) {
                     reject(new Error('Invalid username'));
                     return;
                 }
 
-                // Verification by decrypting validation token
                 try {
-                    const decryptedCheck = await cryptoService.decrypt(masterPass, user.validationToken);
+                    // Password verification via decryption of validation token
+                    const decryptedCheck = await cryptoService.decrypt(masterPass, userRecord.validationToken);
                     
                     if (decryptedCheck === "VALID_USER") {
-                        // Successful login
                         const token = cookieService.setCookie(username);
                         console.log("Zalogowano pomyślnie. Token:", token);
                         resolve();
                     } else {
                         reject(new Error('Invalid password'));
                     }
-                } catch (e) {
-                    // Decrypt throws error on wrong password
+                } catch (error) {
+                    console.error("Decryption error:", error);
                     reject(new Error('Invalid password'));
                 }
             };
             
-            request.onerror = () => reject(new Error('Database error'));
-        })
+            request.onerror = () => reject(new Error('Database error during login'));
+        });
     }
 
-    // Adding new item
+    // Adding a new vault item
     async addItem(item: VaultItem): Promise<void> {
         await this.ensureInit();
         return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
-            const store = transaction.objectStore(STORE_NAME);
-            const request = store.add(item);
+            if (!this.db) return reject(new Error("Database not initialized"));
+
+            const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+            const objectStore = transaction.objectStore(STORE_NAME);
+            const request = objectStore.add(item);
 
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
         });
     }
 
-    // Get all items
+    // Getting all vault items
+    // This function runs on every load of /passwords route and displays all saved passwords
     async getAllItems(): Promise<VaultItem[]> {
         await this.ensureInit();
         return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction([STORE_NAME], 'readonly');
-            const store = transaction.objectStore(STORE_NAME);
-            const request = store.getAll();
+            if (!this.db) return reject(new Error("Database not initialized"));
 
-            request.onsuccess = () => resolve(request.result || []);
+            const transaction = this.db.transaction([STORE_NAME], 'readonly');
+            const objectStore = transaction.objectStore(STORE_NAME);
+            const request = objectStore.getAll();
+
+            request.onsuccess = () => {
+                // Filter out user records (those with validationToken)
+                const allResults = request.result || [];
+                const vaultItems = allResults.filter((record: any) => !record.validationToken);
+                resolve(vaultItems);
+            };
             request.onerror = () => reject(request.error);
         });
     }
@@ -132,12 +177,15 @@ export class StorageService {
     async deleteItem(id: string): Promise<void> {
         await this.ensureInit();
         return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
-            const store = transaction.objectStore(STORE_NAME);
-            const request = store.delete(id);
+            if (!this.db) return reject(new Error("Database not initialized"));
+
+            const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+            const objectStore = transaction.objectStore(STORE_NAME);
+            const request = objectStore.delete(id);
+            
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
-        })
+        });
     }
 }
 

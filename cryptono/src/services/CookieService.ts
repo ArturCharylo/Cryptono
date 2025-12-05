@@ -12,7 +12,7 @@ class CookieService {
         };
         
         // Simulated signature
-        const secret = "TWOJ_SEKRETNY_KLUCZ_APLIKACJI"; 
+        const secret = import.meta.env.COOKIE_SECRET; 
         const signature = btoa(secret); 
         
         const token = `${base64Url(header)}.${base64Url(payload)}.${signature}`;
@@ -45,7 +45,7 @@ class CookieService {
         const token = this.getCookie("authToken");
 
         if (token) {
-            console.log("Użytkownik zalogowany. Token:", token);
+            console.log("User logged in. Token:", token);
             
             // Check expiration date
             try {
@@ -53,16 +53,16 @@ class CookieService {
                 const payload = JSON.parse(atob(payloadBase64));
                 
                 if (payload.exp < Date.now()) {
-                    console.warn("Token wygasł!");
+                    console.warn("Token expired");
                 } else {
-                    console.log("Witaj ponownie:", payload.sub);
+                    console.log("Welcome again", payload.sub);
                 }
             } catch (e) {
-                console.error("Nieprawidłowy token");
+                console.error("Invalid token");
             }
 
         } else {
-            console.log("Brak tokena - przekieruj do logowania");
+            console.log("No token found.");
         }
     }
 
