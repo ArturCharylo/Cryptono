@@ -2,10 +2,11 @@
 import type { VaultItem } from '../types/index';
 import { cryptoService } from './CryptoService';
 import { cookieService } from './CookieService';
+import { DB_CONFIG } from '../constants/constants';
 
-const DB_NAME = 'CryptonoDB';
-const STORE_NAME = 'vault';
-const DB_VERSION = 2; 
+const DB_NAME = DB_CONFIG.DB_NAME;
+const STORE_NAME = DB_CONFIG.STORE_NAME;
+const DB_VERSION = DB_CONFIG.DB_VERSION; 
 
 export class StorageService {
     private db: IDBDatabase | null = null;

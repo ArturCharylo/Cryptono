@@ -6,6 +6,7 @@ import { Login } from '../components/Login';
 import { Register } from '../components/Register';
 import { Passwords } from '../components/Passwords';
 import { cookieService } from '../services/CookieService';
+import { COOKIES } from '../constants/constants';
 
 document.addEventListener('DOMContentLoaded', () => {
     const root = document.getElementById('app') as HTMLElement;
@@ -21,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     router.addRoute('/passwords', () => new Passwords(navigate).render(), () => new Passwords(navigate).afterRender());
 
     // Token -> Passwords
-    if (cookieService.getCookie('authToken')) {
+    if (cookieService.getCookie(COOKIES.AUTH)) {
         router.navigate('/passwords');
     }
     // NO Token -> Login

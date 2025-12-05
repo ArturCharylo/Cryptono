@@ -1,3 +1,4 @@
+import { COOKIES } from '../constants/constants';
 import { cookieService } from '../services/CookieService';
 import { storageService } from '../services/StorageService';
 import type { VaultItem } from '../types';
@@ -61,7 +62,7 @@ export class Passwords {
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
                 console.log("Kliknięto wyloguj. Przed usunięciem:", document.cookie);
-                cookieService.DeleteCookie('authToken');
+                cookieService.DeleteCookie(COOKIES.AUTH);
                 console.log("Po usunięciu:", document.cookie);
                 this.navigate('/login');
             });

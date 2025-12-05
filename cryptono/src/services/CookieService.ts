@@ -1,3 +1,4 @@
+import { COOKIES } from '../constants/constants';
 import { base64Url } from '../utils/buffer';
 class CookieService {
 
@@ -42,7 +43,7 @@ class CookieService {
     }
 
     async checkAuthStatus() {
-        const token = this.getCookie("authToken");
+        const token = this.getCookie(COOKIES.AUTH);
 
         if (token) {
             console.log("User logged in. Token:", token);
