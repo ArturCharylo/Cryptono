@@ -33,6 +33,13 @@ export class StorageService {
         });
     }
 
+    // Helper function to ensure that the database is active and open
+    private async ensureInit() {
+        if (!this.db) {
+            await this.init();
+        }
+    }
+
     async createUser(username: string, masterPass: string, repeatPass: string): Promise<void> {
         if (masterPass !== repeatPass) {
             return Promise.reject(new Error('Passwords do not match'));
@@ -122,11 +129,15 @@ export class StorageService {
         });
     }
 
-    // Helper function to ensure that the database is active and open
-    private async ensureInit() {
-        if (!this.db) {
-            await this.init();
-        }
+    async deleteItem(id: string): Promise<void> {
+        await this.ensureInit();
+        return new Promise((resolve, reject) => {
+            const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.delete(id);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        })
     }
 }
 
