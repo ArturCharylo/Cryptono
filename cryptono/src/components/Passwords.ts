@@ -181,7 +181,6 @@ export class Passwords {
                 const btnDelete = document.createElement('button');
                 btnDelete.className = 'action-btn delete-btn';
                 btnDelete.textContent = 'Delete';
-                btnDelete.style.marginLeft = '5px';
                 btnDelete.onclick = () => {
                     if (confirm("Are you sure you want to delete this record?")) {
                         storageService.deleteItem(item.id).then(() => {
