@@ -127,7 +127,7 @@ export class Register {
         }
 
         // Create user in indexedDB
-        await storageService.createUser(username, password, repeatPass);
+        await storageService.createUser(username, email, password, repeatPass);
         
         return true;
     }
