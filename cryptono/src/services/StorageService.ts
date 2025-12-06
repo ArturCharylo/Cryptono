@@ -187,17 +187,30 @@ export class StorageService {
                 
                 try {
                     // Decode each field of vault items
-                    const decryptedItems: VaultItem[] = await Promise.all(
+                    // Promise.allSettled is a helper function to catch all rejected(bad) items in DB
+                    const results = await Promise.allSettled(
                         encryptedItems.map(async (item: EncryptedVaultItem) => {
-                            return {
-                                id: item.id,
-                                url: await cryptoService.decrypt(masterPassword, item.url),
-                                username: await cryptoService.decrypt(masterPassword, item.username),
-                                password: await cryptoService.decrypt(masterPassword, item.password),
-                                createdAt: item.createdAt
-                            };
+                            try {
+                                return {
+                                    id: item.id,
+                                    url: await cryptoService.decrypt(masterPassword, item.url),
+                                    username: await cryptoService.decrypt(masterPassword, item.username),
+                                    password: await cryptoService.decrypt(masterPassword, item.password),
+                                    createdAt: item.createdAt
+                                };
+                            } catch (error) {
+                                console.warn(`Skipping corrupted item ${item.id}`, error);
+                                throw error; // This line ensures that incorrect items cause rejected status
+                            }
                         })
                     );
+
+                    // Filter out only accepted items, this ensures that one bad entry won't affect the function 
+                    // Implementing this fix allows to skip rejected elements and display all accepted ones without error
+                    const decryptedItems: VaultItem[] = results
+                        .filter((result): result is PromiseFulfilledResult<VaultItem> => result.status === 'fulfilled')
+                        .map(result => result.value);
+
                     resolve(decryptedItems);
                 } catch (error) {
                     console.error("Błąd deszyfracji:", error);
