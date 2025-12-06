@@ -1,13 +1,8 @@
+import type { Validation } from "../types/index";
+
 export const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[\w@$!%*?&]{8,}$/;
 export const usernameRegex = /^[a-zA-Z0-9._@+-]+$/;
 export const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
-interface Validation {
-    value: string;
-    regex: RegExp;
-    fieldName: string;
-    message: string;
-}
 
 function loginValidation(username: string, password: string): Validation[] {
     return [

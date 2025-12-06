@@ -18,3 +18,10 @@ export interface EncryptedVaultItem {
     password: string; // Ciphertext
     createdAt: number;
 }
+
+export interface Validation {
+    value: string;
+    regex: RegExp;
+    fieldName: string;
+    message: string;
+}
