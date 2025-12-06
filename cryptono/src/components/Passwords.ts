@@ -79,7 +79,14 @@ export class Passwords {
                     password: 'SuperSecretPassword123!',
                     createdAt: Date.now()
                 };
-                await storageService.addItem(newItem, await chrome.storage.session.get(COOKIES.MASTER));
+                const sessionData = await chrome.storage.session.get(COOKIES.MASTER);
+                const masterPassword = sessionData.masterPassword as string;
+
+                if (masterPassword) {
+                    await storageService.addItem(newItem, masterPassword);
+                } else {
+                    this.navigate('/login');
+}
                 this.loadItems(); 
             });
         }
@@ -90,7 +97,17 @@ export class Passwords {
         if (!listContainer) return;
 
         try {
-            const items = await storageService.getAllItems(await chrome.storage.session.get(COOKIES.MASTER));
+            const sessionData = await chrome.storage.session.get(COOKIES.MASTER);
+            const masterPassword = sessionData.masterPassword as string;
+
+            if (!masterPassword) {
+                // Redirect to login if no master password found
+                // Technically this check is preformed in another compoment, but better be safe than sorry
+                this.navigate('/login');
+                return;
+            }
+
+            const items = await storageService.getAllItems(masterPassword);
             
             if (items.length === 0) {
                 listContainer.innerHTML = '<tr><td colspan="4" class="state-message empty">No passwords saved yet.</td></tr>';
