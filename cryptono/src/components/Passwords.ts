@@ -79,7 +79,7 @@ export class Passwords {
                     password: 'SuperSecretPassword123!',
                     createdAt: Date.now()
                 };
-                await storageService.addItem(newItem);
+                await storageService.addItem(newItem, await chrome.storage.session.get(COOKIES.MASTER));
                 this.loadItems(); 
             });
         }
@@ -90,7 +90,7 @@ export class Passwords {
         if (!listContainer) return;
 
         try {
-            const items = await storageService.getAllItems();
+            const items = await storageService.getAllItems(await chrome.storage.session.get(COOKIES.MASTER));
             
             if (items.length === 0) {
                 listContainer.innerHTML = '<tr><td colspan="4" class="state-message empty">No passwords saved yet.</td></tr>';

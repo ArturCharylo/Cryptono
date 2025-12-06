@@ -6,4 +6,5 @@ export const DB_CONFIG = {
 
 export const COOKIES = {
     AUTH: "authToken",
+    MASTER: "masterPassword"
 }

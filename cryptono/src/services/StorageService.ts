@@ -1,5 +1,5 @@
 // src/services/StorageService.ts
-import type { VaultItem } from '../types/index';
+import type { VaultItem, EncryptedVaultItem } from '../types/index';
 import { cryptoService } from './CryptoService';
 import { cookieService } from './CookieService';
 import { DB_CONFIG } from '../constants/constants';
@@ -125,6 +125,7 @@ export class StorageService {
                     if (decryptedCheck === "VALID_USER") {
                         const token = cookieService.setCookie(username);
                         console.log("Zalogowano pomyślnie. Token:", token);
+                        chrome.storage.session.set({ masterPassword: masterPass });
                         resolve();
                     } else {
                         reject(new Error('Invalid password'));
@@ -140,14 +141,28 @@ export class StorageService {
     }
 
     // Adding a new vault item
-    async addItem(item: VaultItem): Promise<void> {
+    async addItem(item: VaultItem, masterPassword: string): Promise<void> {
         await this.ensureInit();
+
+        const encryptedUrl = await cryptoService.encrypt(masterPassword, item.url);
+        const encryptedUsername = await cryptoService.encrypt(masterPassword, item.username);
+        const encryptedPassword = await cryptoService.encrypt(masterPassword, item.password);
+
+        // Here we encrypt all neccessary fields of VaultItem before passing to indexedDB
+        const encryptedItem: EncryptedVaultItem = {
+            id: item.id,
+            url: encryptedUrl,
+            username: encryptedUsername,
+            password: encryptedPassword,
+            createdAt: item.createdAt
+        };
+
         return new Promise((resolve, reject) => {
             if (!this.db) return reject(new Error("Database not initialized"));
 
             const transaction = this.db.transaction([STORE_NAME], 'readwrite');
             const objectStore = transaction.objectStore(STORE_NAME);
-            const request = objectStore.add(item);
+            const request = objectStore.add(encryptedItem);
 
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
@@ -156,7 +171,7 @@ export class StorageService {
 
     // Getting all vault items
     // This function runs on every load of /passwords route and displays all saved passwords
-    async getAllItems(): Promise<VaultItem[]> {
+    async getAllItems(masterPassword: string): Promise<VaultItem[]> {
         await this.ensureInit();
         return new Promise((resolve, reject) => {
             if (!this.db) return reject(new Error("Database not initialized"));
@@ -165,11 +180,29 @@ export class StorageService {
             const objectStore = transaction.objectStore(STORE_NAME);
             const request = objectStore.getAll();
 
-            request.onsuccess = () => {
-                // Filter out user records (those with validationToken)
+            request.onsuccess = async () => {
                 const allResults = request.result || [];
-                const vaultItems = allResults.filter((record: any) => !record.validationToken);
-                resolve(vaultItems);
+                // Fliter out user records (which contain validationToken)
+                const encryptedItems = allResults.filter((record: any) => !record.validationToken);
+                
+                try {
+                    // Decode each field of vault items
+                    const decryptedItems: VaultItem[] = await Promise.all(
+                        encryptedItems.map(async (item: EncryptedVaultItem) => {
+                            return {
+                                id: item.id,
+                                url: await cryptoService.decrypt(masterPassword, item.url),
+                                username: await cryptoService.decrypt(masterPassword, item.username),
+                                password: await cryptoService.decrypt(masterPassword, item.password),
+                                createdAt: item.createdAt
+                            };
+                        })
+                    );
+                    resolve(decryptedItems);
+                } catch (error) {
+                    console.error("Błąd deszyfracji:", error);
+                    reject(new Error("Nie udało się odszyfrować skarbca."));
+                }
             };
             request.onerror = () => reject(request.error);
         });
