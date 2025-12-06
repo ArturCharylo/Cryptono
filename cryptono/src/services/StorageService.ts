@@ -54,7 +54,7 @@ export class StorageService {
         }
     }
 
-    async createUser(username: string, masterPass: string, repeatPass: string): Promise<void> {
+    async createUser(username: string, email:string, masterPass: string, repeatPass: string): Promise<void> {
         if (masterPass !== repeatPass) {
             return Promise.reject(new Error('Passwords do not match'));
         }
@@ -72,7 +72,8 @@ export class StorageService {
             // Save user
             const newUser = { 
                 id: crypto.randomUUID(), 
-                username: username, 
+                username: username,
+                email: email,
                 validationToken: validationToken 
             }; 
             

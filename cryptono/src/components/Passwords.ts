@@ -79,15 +79,16 @@ export class Passwords {
                     password: 'SuperSecretPassword123!',
                     createdAt: Date.now()
                 };
+                
                 const sessionData = await chrome.storage.session.get(COOKIES.MASTER);
                 const masterPassword = sessionData.masterPassword as string;
 
                 if (masterPassword) {
                     await storageService.addItem(newItem, masterPassword);
+                    this.loadItems(); 
                 } else {
                     this.navigate('/login');
-}
-                this.loadItems(); 
+                }
             });
         }
     }
@@ -109,62 +110,92 @@ export class Passwords {
 
             const items = await storageService.getAllItems(masterPassword);
             
+            // Clear innerHTML container
+            listContainer.innerHTML = '';
+
             if (items.length === 0) {
-                listContainer.innerHTML = '<tr><td colspan="4" class="state-message empty">No passwords saved yet.</td></tr>';
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td colspan="4" class="state-message empty">No passwords saved yet.</td>';
+                listContainer.appendChild(tr);
                 return;
             }
 
-            listContainer.innerHTML = items.map(item => `
-                <tr>
-                    <td><span class="site-url">${item.url}</span></td>
-                    <td class="username-cell">${item.username}</td>
-                    <td>
-                        <div class="password-wrapper" id="pwd-wrapper-${item.id}">
-                            <span class="password-text">${item.password}</span>
-                            <span class="password-mask">••••••••</span>
-                        </div>
-                    </td>
-                    <td class="text-right">
-                        <button class="action-btn toggle-btn" data-id="${item.id}">Show</button>
-                        <button class="action-btn delete-btn" data-id="${item.id}">Delete</button>
-                    </td>
-                </tr>
-            `).join('');
+            // Building table with DOM API
+            // This method ensures that XSS attacks are handled
+            items.forEach(item => {
+                const tr = document.createElement('tr');
 
-            // Event listeners for toggle buttons
-            document.querySelectorAll('.toggle-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const button = e.target as HTMLButtonElement;
-                    const id = button.getAttribute('data-id');
-                    const wrapper = document.getElementById(`pwd-wrapper-${id}`);
+                // Column 'Site'
+                const tdSite = document.createElement('td');
+                const spanSite = document.createElement('span');
+                spanSite.className = 'site-url';
+                spanSite.textContent = item.url; // 🛡️ XSS STOP
+                tdSite.appendChild(spanSite);
+                tr.appendChild(tdSite);
 
-                    if (wrapper) {
-                        // Toggle logic using CSS classes instead of inline styles
-                        wrapper.classList.toggle('revealed');
-                        const isRevealed = wrapper.classList.contains('revealed');
-                        
-                        button.textContent = isRevealed ? 'Hide' : 'Show';
-                        
-                        if (isRevealed) {
-                            button.classList.add('active');
-                        } else {
-                            button.classList.remove('active');
-                        }
+                // Column 'Username'
+                const tdUser = document.createElement('td');
+                tdUser.className = 'username-cell';
+                tdUser.textContent = item.username; // 🛡️ XSS STOP
+                tr.appendChild(tdUser);
+
+                // Coulmn 'Password'
+                const tdPass = document.createElement('td');
+                const divWrapper = document.createElement('div');
+                divWrapper.className = 'password-wrapper';
+                
+                const spanText = document.createElement('span');
+                spanText.className = 'password-text';
+                spanText.textContent = item.password; // 🛡️ XSS STOP
+                
+                const spanMask = document.createElement('span');
+                spanMask.className = 'password-mask';
+                spanMask.textContent = '••••••••';
+
+                divWrapper.appendChild(spanText);
+                divWrapper.appendChild(spanMask);
+                tdPass.appendChild(divWrapper);
+                tr.appendChild(tdPass);
+
+                // Table column 'Action'
+                const tdAction = document.createElement('td');
+                tdAction.className = 'text-right';
+
+                // SHow/Hide button
+                const btnToggle = document.createElement('button');
+                btnToggle.className = 'action-btn toggle-btn';
+                btnToggle.textContent = 'Show';
+                // Add event listener directly to element
+                btnToggle.onclick = () => {
+                    divWrapper.classList.toggle('revealed');
+                    const isRevealed = divWrapper.classList.contains('revealed');
+                    btnToggle.textContent = isRevealed ? 'Hide' : 'Show';
+                    if (isRevealed) {
+                        btnToggle.classList.add('active');
+                    } else {
+                        btnToggle.classList.remove('active');
                     }
-                });
-            });
+                };
 
-            // Event listeners for delete buttons
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const button = e.target as HTMLButtonElement;
-                    const id = button.getAttribute('data-id');
-                    if (confirm("Are you sure you want to delete this record?")){
-                        storageService.deleteItem(id!).then(() => {
+                // Delete button
+                const btnDelete = document.createElement('button');
+                btnDelete.className = 'action-btn delete-btn';
+                btnDelete.textContent = 'Delete';
+                btnDelete.style.marginLeft = '5px';
+                btnDelete.onclick = () => {
+                    if (confirm("Are you sure you want to delete this record?")) {
+                        storageService.deleteItem(item.id).then(() => {
                             this.loadItems();
-                        })
+                        });
                     }
-                });
+                };
+
+                tdAction.appendChild(btnToggle);
+                tdAction.appendChild(btnDelete);
+                tr.appendChild(tdAction);
+
+                // Add table row
+                listContainer.appendChild(tr);
             });
 
         } catch (error) {
