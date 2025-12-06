@@ -1,5 +1,5 @@
 export const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[\w@$!%*?&]{8,}$/;
-export const nameRegex = /^[A-Za-z\s'-]+$/;
+export const usernameRegex = /^[a-zA-Z0-9._@+-]+$/;
 export const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 interface Validation {
@@ -13,7 +13,7 @@ function loginValidation(username: string, password: string): Validation[] {
     return [
         {
             value: username,
-            regex: nameRegex,
+            regex: usernameRegex,
             fieldName: "First name",
             message: "Wrong first name format. Only letters, spaces, apostrophes, and hyphens are allowed.",
         },
@@ -30,7 +30,7 @@ function registerValidation(email: string, username: string, password:string): V
     return [
         {
             value: username,
-            regex: nameRegex,
+            regex: usernameRegex,
             fieldName: "First name",
             message: "Wrong first name format. Only letters, spaces, apostrophes, and hyphens are allowed.",
         },

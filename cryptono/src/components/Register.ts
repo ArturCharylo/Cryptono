@@ -41,7 +41,7 @@ export class Register {
                     </div>
 
                     <button type="submit" class="login-btn register-btn">
-                        <span class="btn-text">Register</span>
+                        <span class="btn-text">Create Local Vault</span>
                         <div class="btn-loader" style="display: none;">
                             <div class="spinner"></div>
                         </div>
