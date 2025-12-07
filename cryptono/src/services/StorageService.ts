@@ -1,7 +1,6 @@
 // src/services/StorageService.ts
 import type { VaultItem, EncryptedVaultItem } from '../types/index';
 import { cryptoService } from './CryptoService';
-import { cookieService } from './CookieService';
 import { DB_CONFIG } from '../constants/constants';
 
 const DB_NAME = DB_CONFIG.DB_NAME;
@@ -124,8 +123,6 @@ export class StorageService {
                     const decryptedCheck = await cryptoService.decrypt(masterPass, userRecord.validationToken);
                     
                     if (decryptedCheck === "VALID_USER") {
-                        const token = cookieService.setCookie(username);
-                        console.log("Zalogowano pomyślnie. Token:", token);
                         chrome.storage.session.set({ masterPassword: masterPass });
                         resolve();
                     } else {

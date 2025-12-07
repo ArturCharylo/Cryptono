@@ -5,10 +5,9 @@ import { Router } from '../utils/router';
 import { Login } from '../components/Login';
 import { Register } from '../components/Register';
 import { Passwords } from '../components/Passwords';
-import { cookieService } from '../services/CookieService';
-import { COOKIES } from '../constants/constants';
+import { STORAGE_KEYS } from '../constants/constants';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const root = document.getElementById('app') as HTMLElement;
     const router = new Router(root);
 
@@ -22,7 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
     router.addRoute('/passwords', () => new Passwords(navigate).render(), () => new Passwords(navigate).afterRender());
 
     // Token -> Passwords
-    if (cookieService.getCookie(COOKIES.AUTH)) {
+    const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
+    if (sessionData.masterPassword) {
         router.navigate('/passwords');
     }
     // NO Token -> Login

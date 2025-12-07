@@ -1,5 +1,4 @@
-import { COOKIES } from '../constants/constants';
-import { cookieService } from '../services/CookieService';
+import { STORAGE_KEYS } from '../constants/constants';
 import { storageService } from '../services/StorageService';
 import type { VaultItem } from '../types';
 
@@ -61,9 +60,7 @@ export class Passwords {
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
-                console.log("Kliknięto wyloguj. Przed usunięciem:", document.cookie);
-                cookieService.DeleteCookie(COOKIES.AUTH);
-                console.log("Po usunięciu:", document.cookie);
+                chrome.storage.session.remove(STORAGE_KEYS.MASTER)
                 this.navigate('/login');
             });
         }
@@ -80,7 +77,7 @@ export class Passwords {
                     createdAt: Date.now()
                 };
                 
-                const sessionData = await chrome.storage.session.get(COOKIES.MASTER);
+                const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
                 const masterPassword = sessionData.masterPassword as string;
 
                 if (masterPassword) {
@@ -98,7 +95,7 @@ export class Passwords {
         if (!listContainer) return;
 
         try {
-            const sessionData = await chrome.storage.session.get(COOKIES.MASTER);
+            const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
             const masterPassword = sessionData.masterPassword as string;
 
             if (!masterPassword) {
