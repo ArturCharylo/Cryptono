@@ -1,6 +1,5 @@
 import { STORAGE_KEYS } from '../constants/constants';
 import { storageService } from '../services/StorageService';
-import type { VaultItem } from '../types';
 
 export class Passwords {
     navigate: (path: string) => void;
@@ -67,25 +66,9 @@ export class Passwords {
 
         // Handle Adding test item
         const addTestBtn = document.getElementById('add-test-btn');
-        if (addTestBtn) {
-            addTestBtn.addEventListener('click', async () => {
-                const newItem: VaultItem = {
-                    id: crypto.randomUUID(),
-                    url: 'google.com',
-                    username: 'user@example.com',
-                    password: 'SuperSecretPassword123!',
-                    createdAt: Date.now()
-                };
-                
-                const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
-                const masterPassword = sessionData.masterPassword as string;
-
-                if (masterPassword) {
-                    await storageService.addItem(newItem, masterPassword);
-                    this.loadItems(); 
-                } else {
-                    this.navigate('/login');
-                }
+        if (addTestBtn){
+            addTestBtn.addEventListener('click', () => {
+                this.navigate('/add');
             });
         }
     }

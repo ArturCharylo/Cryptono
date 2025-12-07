@@ -5,6 +5,7 @@ import { Router } from '../utils/router';
 import { Login } from '../components/Login';
 import { Register } from '../components/Register';
 import { Passwords } from '../components/Passwords';
+import { AddItem } from '../components/AddItem';
 import { STORAGE_KEYS } from '../constants/constants';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -19,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     router.addRoute('/login', () => new Login(navigate).render(), () => new Login(navigate).afterRender());
     router.addRoute('/register', () => new Register(navigate).render(), () => new Register(navigate).afterRender());
     router.addRoute('/passwords', () => new Passwords(navigate).render(), () => new Passwords(navigate).afterRender());
+    router.addRoute('/addItem', () => new AddItem(navigate).render(), () => new AddItem(navigate).afterRender());
 
     // Token -> Passwords
     const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
