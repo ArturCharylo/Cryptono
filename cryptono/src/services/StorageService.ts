@@ -59,8 +59,7 @@ export class StorageService {
         }
         await this.ensureInit();
 
-        // 1. Szyfrowanie wykonujemy PRZED wejściem w Promise bazy danych
-        // Używamy masterPass przekazanego w argumencie, a nie z sesji!
+        // Encrypt data before entering DB promise
         const [encryptedValidationToken, encryptedEmail] = await Promise.all([
             cryptoService.encrypt(masterPass, "VALID_USER"),
             cryptoService.encrypt(masterPass, email)
@@ -74,8 +73,8 @@ export class StorageService {
             
             const newUser: User = { 
                 id: crypto.randomUUID(), 
-                username: username, // Jawne, aby index('username') działał
-                email: encryptedEmail, // Zaszyfrowane!
+                username: username, // plain text, which is neccessary for index in DB to work
+                email: encryptedEmail, // ciphertext
                 validationToken: encryptedValidationToken 
             }; 
             

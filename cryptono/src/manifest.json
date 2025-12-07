@@ -3,7 +3,7 @@
   "name": "Cryptono",
   "version": "1.0",
   "description": "Store and autofill your passwords securely.",
-  "permissions": ["storage", "scripting", "activeTab"],
+  "permissions": ["storage", "scripting", "activeTab", "clipboardWrite"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js",
