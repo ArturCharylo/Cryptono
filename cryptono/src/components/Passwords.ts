@@ -132,8 +132,33 @@ export class Passwords {
                 spanMask.className = 'password-mask';
                 spanMask.textContent = '••••••••';
 
+                const btnCopyIcon = document.createElement('button');
+                btnCopyIcon.className = 'copy-icon-btn';
+                btnCopyIcon.innerHTML = '📋';
+                btnCopyIcon.title = "Copy password"; // Text after hover
+
+                btnCopyIcon.onclick = async (e) => {
+                    e.stopPropagation(); // Handles unexpeted actions
+                    try {
+                        await navigator.clipboard.writeText(item.password);
+                        
+                        // Visual animation for copying passwords
+                        btnCopyIcon.innerHTML = '✅';
+                        btnCopyIcon.classList.add('success');
+
+                        setTimeout(() => {
+                            btnCopyIcon.innerHTML = '📋';
+                            btnCopyIcon.classList.remove('success');
+                        }, 2000);
+                        
+                    } catch (err) {
+                        console.error('Failed to copy:', err);
+                    }
+                };
+
                 divWrapper.appendChild(spanText);
                 divWrapper.appendChild(spanMask);
+                divWrapper.appendChild(btnCopyIcon)
                 tdPass.appendChild(divWrapper);
                 tr.appendChild(tdPass);
 
