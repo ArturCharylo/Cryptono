@@ -68,7 +68,7 @@ export class Passwords {
         const addTestBtn = document.getElementById('add-test-btn');
         if (addTestBtn){
             addTestBtn.addEventListener('click', () => {
-                this.navigate('/add');
+                this.navigate('/addItem');
             });
         }
     }

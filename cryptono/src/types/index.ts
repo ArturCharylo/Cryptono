@@ -1,11 +1,19 @@
 // src/types/index.ts
 
+// This interface is used for creating new users in DB
+export interface User{
+    id: string;
+    username: string; // This is stored as plain text as it is neccessary for indexing and finding correct users during login
+    email: string; // This is encrypted as anything that doesn't have to be plain text won't be
+    validationToken: string;
+}
+
 // This interface is created for good practice and TypeScript types verificaton
 export interface VaultItem {
     id: string;          // example: UUID
     url: string;         // Site URL
-    username: string;    // Login
-    password: string;    // Password is now stored as plain text which is acceptable only for private testing purposes and absoluetly should not presist beyond that
+    username: string;    // Login  
+    password: string;    // Password is allowed as plain text here, because this type should never be passed to the database, and only be used for encryption
     createdAt: number;   // TimeStamp
 }
 
