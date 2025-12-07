@@ -3,7 +3,7 @@
 // This interface is used for creating new users in DB
 export interface User{
     id: string;
-    username: string; // This is stored as plain text as it is neccessary for indexing and finding correct users during login
+    username: string; // Stored as encrypted string in DB, decrypted in app memory
     email: string; // This is encrypted as anything that doesn't have to be plain text won't be
     validationToken: string;
 }

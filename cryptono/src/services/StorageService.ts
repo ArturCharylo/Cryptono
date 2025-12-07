@@ -1,7 +1,7 @@
 // src/services/StorageService.ts
 import type { VaultItem, EncryptedVaultItem, User } from '../types/index';
 import { cryptoService } from './CryptoService';
-import { DB_CONFIG } from '../constants/constants';
+import { DB_CONFIG, STORAGE_KEYS } from '../constants/constants';
 
 const DB_NAME = DB_CONFIG.DB_NAME;
 const STORE_NAME = DB_CONFIG.STORE_NAME;
@@ -124,7 +124,7 @@ export class StorageService {
                     const decryptedCheck = await cryptoService.decrypt(masterPass, userRecord.validationToken);
                     
                     if (decryptedCheck === "VALID_USER") {
-                        chrome.storage.session.set({ masterPassword: masterPass });
+                        chrome.storage.session.set({ [STORAGE_KEYS.MASTER]: masterPass });
                         resolve();
                     } else {
                         reject(new Error('Invalid password'));
