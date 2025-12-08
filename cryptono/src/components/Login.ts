@@ -78,13 +78,11 @@ export class Login {
             }
 
             try {
-                const loginSuccess = await this.authenticate(username, password);
+                await this.authenticate(username, password);
 
-                if (loginSuccess) {
-                    this.navigate('/passwords');
-                }
+                this.navigate('/passwords');
             } catch (error) {
-                // this condition ensures that the users sees the error
+                // Catch error and display to user
                 if (error instanceof Error) {
                     alert(error.message);
                 } else {
@@ -100,13 +98,10 @@ export class Login {
         });
     }
 
-    // This function verifies fields from the login form with regex rules
-   async authenticate(username: string, password: string): Promise<boolean> {
-        // Validate regex
+    // This function only handles validation -> Pass or error
+   async authenticate(username: string, password: string): Promise<void> {
         const validations = loginValidation(username, password);
 
-        // Using .test for regex expressions is the quickes way as it returns only boolean values
-        // Convert to RegExp if value is a string
         const allValid = validations.every(v => {
             const regexObj = v.regex instanceof RegExp ? v.regex : new RegExp(v.regex);
             return regexObj.test(v.value);
@@ -120,18 +115,18 @@ export class Login {
                 })
                 .map(v => v.message);
 
-            // Throw error
             throw new Error(errors.join('\n')); 
         }
 
-        // Attempt login in storageService
+        // Login
         try {
             await storageService.Login(username, password);
-            return true; // Success
         } catch (err) {
-            console.error(err);
-            alert('Invalid credentials'); // Clear communctiation with the user
-            return false;
+            // Log error to console, which allows usto avoid warnings for only throw new Error in catch
+            console.error("Login attempt failed:", err);
+            
+            // Change error message to be more generic
+            throw new Error('Invalid credentials'); 
         }
     }
 }
