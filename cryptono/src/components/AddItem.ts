@@ -63,7 +63,7 @@ export class AddItem {
         const cancelBtn = document.getElementById('cancel-btn');
         const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
 
-        // Handle return to valut page(passwords)
+        // Handle return to vault page(passwords)
         if (cancelBtn) {
             cancelBtn.addEventListener('click', () => {
                 this.navigate('/passwords');
@@ -83,30 +83,24 @@ export class AddItem {
                 alert("Passwords do not match!");
                 return;
             }
-            const isValid: boolean = await this.authenticate(url, username, password);
-
-            if (isValid) {
-                this.navigate('/passwords');
-            } else {
-                alert('Invalid credentials');
-            }
 
             // UI Loading state
-            submitBtn.classList.add('loading');
-            submitBtn.disabled = true;
+            if (submitBtn) {
+                submitBtn.classList.add('loading');
+                submitBtn.disabled = true;
+            }
 
             try {
-                // Get master from session which is required for encryption
+                await this.validateItem(url, username, password);
+
+                // Get master key from session data
                 const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
                 const masterPassword = sessionData[STORAGE_KEYS.MASTER] as string;
 
                 if (!masterPassword) {
-                    alert("Session expired. Please login again.");
-                    this.navigate('/login');
-                    return;
+                    throw new Error("Session expired. Please login again.");
                 }
 
-                // Create Object which will be passed to StorageService and encrypted
                 const newItem: VaultItem = {
                     id: crypto.randomUUID(),
                     url: url,
@@ -115,34 +109,52 @@ export class AddItem {
                     createdAt: Date.now()
                 };
 
-                // Send to StorageService which will encrypt and store in DB
+                // Encrypt and store new item after successful validation
                 await storageService.addItem(newItem, masterPassword);
 
-                // Navigate back to vault on success
                 this.navigate('/passwords');
 
             } catch (error) {
                 console.error(error);
-                alert("Failed to save item: " + (error as Error).message);
-                submitBtn.classList.remove('loading');
-                submitBtn.disabled = false;
+                
+                // handle expired sessions
+                if ((error as Error).message.includes("Session expired")) {
+                    alert((error as Error).message);
+                    this.navigate('/login');
+                } else {
+                    // Show valiadtion or saving errors
+                    alert((error as Error).message);
+                }
+            } finally {
+                // Reset loading state
+                if (submitBtn) {
+                    submitBtn.classList.remove('loading');
+                    submitBtn.disabled = false;
+                }
             }
         });
     }
 
-        async authenticate(url: string, username: string, password: string): Promise<boolean> {
-        return new Promise((resolve) => {
-            if (addValidation(url,username, password).every(v => v.value.match(v.regex))){
-                resolve(true)
-            }
-            else{
-                addValidation(url, username, password).forEach(v => {
-                    if (!v.value.match(v.regex)){
-                        alert(v.message);
-                    }
-                });
-                resolve(false);
-            }
+    // Validation function - Runs through regex rules and throws errors if any found
+    async validateItem(url: string, username: string, password: string): Promise<void> {
+        const validations = addValidation(url, username, password);
+
+        // Using .test for regex validation as it is faster and safer
+        const allValid = validations.every(v => {
+            const regexObj = v.regex instanceof RegExp ? v.regex : new RegExp(v.regex);
+            return regexObj.test(v.value);
         });
+
+        if (!allValid) {
+            const errors = validations
+                .filter(v => {
+                    const regexObj = v.regex instanceof RegExp ? v.regex : new RegExp(v.regex);
+                    return !regexObj.test(v.value);
+                })
+                .map(v => v.message);
+            
+            // This error will be caught in afterRender function
+            throw new Error(errors.join('\n'));
+        }
     }
 }
