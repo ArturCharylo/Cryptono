@@ -66,7 +66,7 @@ Since this project uses Vite, you need to build it before loading it into Chrome
 1.  **Clone the repository**
 
     ```bash
-    git clone [https://github.com/ArturCharylo/Cryptono.git](https://github.com/ArturCharylo/Cryptono.git)
+    git clone https://github.com/ArturCharylo/Cryptono.git
     cd cryptono/cryptono
     ```
 
