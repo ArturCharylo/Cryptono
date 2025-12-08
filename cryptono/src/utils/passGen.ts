@@ -7,7 +7,7 @@ export const generateStrongPassword = (length: number = 16): string => {
     // Loop for handling the unlikely event of wrong password format
     let attempts = 0;
     while (attempts < 50) { // Safety break, avoids overload
-        window.crypto.getRandomValues(array);
+        globalThis.crypto.getRandomValues(array);
         let password = '';
         
         for (let i = 0; i < length; i++) {
