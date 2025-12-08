@@ -10,7 +10,7 @@ const autoFill = async () => {
       url: hostname 
     });
 
-    if (response && response.success && response.data) {
+    if (response?.success && response?.data) {
       console.log('Cryptono: Credentials found, attempting autofill...');
       fillForms(response.data.username, response.data.password);
     } else {
@@ -26,7 +26,7 @@ const fillForms = (username: string, pass: string) => {
   // Find all password fields
   const passwordInputs = document.querySelectorAll('input[type="password"]');
 
-  passwordInputs.forEach((passwordInput) => {
+  for (const passwordInput of passwordInputs) {
     const input = passwordInput as HTMLInputElement;
     
     // Autofill passwords
@@ -61,7 +61,7 @@ const fillForms = (username: string, pass: string) => {
       usernameInput.style.backgroundColor = '#e8f0fe';
       input.style.backgroundColor = '#e8f0fe';
     }
-  });
+  }
 };
 
 // Run autofill on site load
