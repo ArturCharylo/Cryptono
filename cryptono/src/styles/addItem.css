@@ -60,3 +60,21 @@
 .eye-btn:hover {
     opacity: 1 !important;
 }
+
+.cancel-btn:hover {
+    border-color: rgba(252, 58, 58, 0.4) !important;
+    box-shadow: 
+        0 5px 15px rgba(248, 0, 0, 0.329),
+        inset 0 0 10px rgba(248, 0, 0, 0.1)
+        !important;
+    background: rgba(40, 0, 0, 0.3);
+}
+
+.save-btn:hover {
+    border-color: rgba(0, 255, 42, 0.4) !important;
+    box-shadow: 
+        0 5px 15px rgba(0, 255, 68, 0.363),
+        inset 0 0 10px rgba(0, 255, 68, 0.15)
+        !important;
+    background: rgba(0, 40, 10, 0.3);
+}

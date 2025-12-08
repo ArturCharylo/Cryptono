@@ -61,7 +61,7 @@ export class AddItem {
                         <input type="password" name="re-pass" id="re-pass" placeholder="Repeat your password" class="form-input" required/>
                     </div>
 
-                    <button type="submit" class="login-btn register-btn">
+                    <button type="submit" class="login-btn save-btn">
                         <span class="btn-text">Save Item</span>
                         <div class="btn-loader" style="display: none;">
                             <div class="spinner"></div>
