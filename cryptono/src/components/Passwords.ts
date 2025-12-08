@@ -79,7 +79,7 @@ export class Passwords {
 
         try {
             const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
-            const masterPassword = sessionData[STORAGE_KEYS.MASTER] as string; // Poprawiłem klucz dostępu (było .masterPassword, a w AddItem używałeś stałej)
+            const masterPassword = sessionData[STORAGE_KEYS.MASTER] as string; 
 
             if (!masterPassword) {
                 this.navigate('/login');
