@@ -1,80 +1,115 @@
-# 🔐 Cryptono  
-**Open-source Password Manager (Chrome Extension)**
+# 🔐 Cryptono
 
-Cryptono is a lightweight and secure open-source password manager built as a Chrome extension.  
-The goal of this project is to provide a simple, privacy-friendly tool for storing and managing passwords locally or with optional encrypted sync.
+**Secure, Local-First Password Manager (Chrome Extension)**
+
+Cryptono is a modern, open-source password manager built as a Chrome Extension (Manifest V3). It prioritizes privacy by storing all credentials locally in an encrypted IndexedDB vault using industry-standard cryptography.
+
+The application features a custom-built Single Page Application (SPA) interface with a sleek Glassmorphism design, entirely framework-free.
 
 ---
 
-## 📌 Features (planned & current)
+## ✨ Features
 
-### 🛠️ Planned
-- Chrome browser extension
-- Password storage in encrypted form
-- Simple and clean UI
-- Master password protection
-- Auto-generate secure passwords
-- Password search and categories
-- Optional synchronized backup (encrypted)
-- Import/export encrypted vault
-- Dark mode 🌙
+### ✅ Currently Implemented
+
+- **Zero-Knowledge Architecture:** Data is encrypted/decrypted locally. We never see your master password.
+- **Modern Encryption:** Uses **AES-GCM (256-bit)** for data and **PBKDF2** for key derivation.
+- **Smart Autofill:** Automatically detects login fields and fills credentials matching the current domain.
+- **Password Generator:** Built-in tool to generate strong, random passwords (configurable length and complexity).
+- **Vault Management:** Add, edit, delete, and copy credentials to clipboard.
+- **Sleek UI:** Custom Glassmorphism interface fully written in TypeScript and CSS variables.
+- **Session Security:** Master password is held only in session memory (`chrome.storage.session`) and cleared on browser restart or logout.
+
+### 🚀 Roadmap / Planned
+
+- [ ] Search and filtering of vault items.
+- [ ] Import/Export functionality (encrypted JSON).
+- [ ] Password strength analysis for existing items.
+- [ ] Secure synchronization (optional cloud backup).
 
 ---
 
 ## 🏗️ Tech Stack
-| Area | Technology |
-|------|------------|
-| Extension Backend | TypeScript |
-| UI | HTML, CSS, TS |
-| Encryption | WebCrypto API |
-| Storage | IndexedDB |
+
+| Area             | Technology                                                  |
+| ---------------- | ----------------------------------------------------------- |
+| **Core**         | TypeScript (Vanilla, no framework)                          |
+| **Build Tool**   | Vite + @crxjs/vite-plugin                                   |
+| **Styling**      | CSS3 (Variables, Flexbox, Glassmorphism)                    |
+| **Storage**      | IndexedDB (Persistent) + Chrome Storage Session (Ephemeral) |
+| **Cryptography** | Web Crypto API (SubtleCrypto)                               |
 
 ---
 
-## 📦 Installation (from source)
+## 🔒 Security Architecture
 
-```bash
-git clone https://github.com/ArturCharylo/cryptono.git
-cd cryptono
-```
+Cryptono takes security seriously. Here is how your data is handled:
 
-1. Open Chrome and go to:
-2. chrome://extensions/
-3. Enable Developer Mode (top-right).
-4. Click Load unpacked and select the project folder.
+1.  **Key Derivation:** Your master password is never stored. It is used to derive a cryptographic key using **PBKDF2** (SHA-256, 100,000 iterations, random salt).
+2.  **Encryption:** Vault items (URL, Username, Password) are encrypted using **AES-GCM**.
+3.  **Storage:** The encrypted blobs (ciphertext + IV + salt) are stored in the browser's **IndexedDB**.
+4.  **Isolation:** The extension runs in a sandboxed environment consistent with Chrome's MV3 security standards.
 
 ---
 
-## 🔑 Security
-All sensitive data is encrypted using the WebCrypto API directly in the browser.
+## 📦 Installation & Development
 
-The app does not send passwords to any external servers (unless encrypted backup is enabled in future versions).
+Since this project uses Vite, you need to build it before loading it into Chrome.
 
-Open-source = transparent and community-audited.
+### Prerequisites
+
+- Node.js (v18 or higher recommended)
+- npm or yarn
+
+### Steps
+
+1.  **Clone the repository**
+
+    ```bash
+    git clone [https://github.com/ArturCharylo/Cryptono.git](https://github.com/ArturCharylo/Cryptono.git)
+    cd cryptono/cryptono
+    ```
+
+2.  **Install dependencies**
+
+    ```bash
+    npm install
+    ```
+
+3.  **Build the extension**
+
+    ```bash
+    npm run build
+    ```
+
+    _Use `npm run dev` for watch mode during development._
+
+4.  **Load into Chrome**
+    1.  Open Chrome and navigate to `chrome://extensions/`.
+    2.  Enable **Developer Mode** (toggle in the top-right corner).
+    3.  Click **Load unpacked**.
+    4.  Select the **`dist`** folder created by the build process (NOT the root source folder).
 
 ---
-
-## ⚠️ Cryptono is currently in early development and may not be suitable for high-security use yet.
 
 ## 🤝 Contributing
-Contributions are welcome!
 
-How to contribute:
+Contributions are welcome! If you find a bug or want to add a feature:
 
-Fork the repo
-
-Create a feature branch
-
-Commit your changes
-
-Submit a pull request 🚀
+1.  Fork the repository.
+2.  Create a feature branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit your changes.
+4.  Push to the branch.
+5.  Open a Pull Request.
 
 ---
 
 ## 📜 License
-This project is licensed under the MIT License.
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## ⭐ Support
-If you like the project, give it a star on GitHub to support development! 🌟
+<p align="center">
+  Made with ❤️ by Artur
+</p>
