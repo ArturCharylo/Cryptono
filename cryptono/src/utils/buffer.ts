@@ -3,11 +3,11 @@
 // while Base64 and strings are easier to use for storage and display.
 export const buffToBase64 = (buffer: BufferSource): string => {
     // Make sure to handle both ArrayBuffer and TypedArray inputs
-    return btoa(String.fromCharCode(...new Uint8Array(buffer as any)));
+    return btoa(String.fromCodePoint(...new Uint8Array(buffer as any)));
 };
 
 export const base64ToBuff = (base64: string): Uint8Array => {
-    return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    return Uint8Array.from(atob(base64), c => c.codePointAt(0)!);
 };
 
 export const base64Url = (source: object) => btoa(JSON.stringify(source));
