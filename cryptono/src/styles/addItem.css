@@ -1,0 +1,62 @@
+/* --- AddItem Component Styles --- */
+
+.label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.label-row label {
+    margin-bottom: 0
+}
+
+.password-wrapper-input {
+    position: relative;
+    width: 100%;
+}
+
+.form-input-with-icon {
+    width: 100%;
+    padding-right: 40px; /* This space ensures that text doesn't overlap the icon */
+}
+
+.eye-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    
+    background: none;
+    border: none;
+    cursor: pointer;
+    
+    opacity: 0.6;
+    padding: 0;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    transition: opacity 0.2s ease;
+}
+
+.gen-btn {
+    background: rgba(117, 227, 255, 0.1);
+    border: 1px solid rgba(117, 227, 255, 0.3);
+    color: rgba(117, 227, 255, 0.9);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.gen-btn:hover {
+    background: rgba(117, 227, 255, 0.2);
+    box-shadow: 0 0 8px rgba(117, 227, 255, 0.2);
+}
+
+/* Icon for showing password */
+.eye-btn:hover {
+    opacity: 1 !important;
+}

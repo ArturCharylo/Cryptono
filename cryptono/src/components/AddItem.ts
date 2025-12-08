@@ -2,6 +2,7 @@ import { storageService } from "../services/StorageService";
 import { STORAGE_KEYS } from "../constants/constants";
 import type { VaultItem } from "../types";
 import { addValidation } from "../validation/validate";
+import { generateStrongPassword } from "../utils/passGen";
 
 export class AddItem {
     navigate: (path: string) => void;
@@ -30,10 +31,31 @@ export class AddItem {
                         <label for="username">Username</label>
                         <input type="text" name="username" id="username" placeholder="Enter your username" class="form-input" required/>
                     </div>
+                    
                     <div class="input-group">
-                        <label for="password">Password</label>
-                        <input type="password" name="password" id="password" placeholder="Str0ng_P@Ssword" class="form-input" required/>
+                        <div class="label-row">
+                            <label for="password">Password</label>
+                            <button type="button" id="gen-pass-btn" class="gen-btn">🎲 Generate</button>
+                        </div>
+                        
+                        <div class="password-wrapper-input">
+                            <input 
+                                type="password" 
+                                name="password" 
+                                id="password" 
+                                placeholder="Str0ng_P@Ssword" 
+                                class="form-input form-input-with-icon" 
+                                required
+                            />
+                            <button 
+                                type="button" 
+                                id="toggle-pass-visibility" 
+                                class="eye-btn" 
+                                title="Show/Hide password"
+                            >👁️</button>
+                        </div>
                     </div>
+
                     <div class="input-group">
                         <label for="re-pass">Repeat Password</label>
                         <input type="password" name="re-pass" id="re-pass" placeholder="Repeat your password" class="form-input" required/>
@@ -46,7 +68,7 @@ export class AddItem {
                         </div>
                     </button>
                     
-                    <button type="button" id="cancel-btn" class="login-btn" style="background: transparent; border: 1px solid rgba(255,255,255,0.2); margin-top: 10px;">
+                    <button type="button" id="cancel-btn" class="login-btn cancel-btn">
                         Cancel
                     </button>
                 </form>
@@ -62,6 +84,40 @@ export class AddItem {
         const form = document.getElementById('item-form') as HTMLFormElement;
         const cancelBtn = document.getElementById('cancel-btn');
         const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+
+        // Password generator elements
+        const genBtn = document.getElementById('gen-pass-btn');
+        const passInput = document.getElementById('password') as HTMLInputElement;
+        const rePassInput = document.getElementById('re-pass') as HTMLInputElement;
+        const toggleVisBtn = document.getElementById('toggle-pass-visibility');
+
+        // -- Password Generator Button -- //
+        if (genBtn) {
+            genBtn.addEventListener('click', () => {
+                const newPassword = generateStrongPassword();
+                
+                passInput.value = newPassword;
+                rePassInput.value = newPassword;
+
+                // Show generated password to the user
+                passInput.type = "text";
+                rePassInput.type = "text";
+                
+                // Animate button for feedback to the user
+                const originalText = genBtn.textContent;
+                genBtn.textContent = "Generated!";
+                setTimeout(() => genBtn.textContent = originalText, 1000);
+            });
+        }
+
+        // --- Show password logic in manual input ---
+        if (toggleVisBtn) {
+            toggleVisBtn.addEventListener('click', () => {
+                const type = passInput.type === "password" ? "text" : "password";
+                passInput.type = type;
+                rePassInput.type = type; // keep both password and repeat password fileds synchronised
+            });
+        }
 
         // Handle return to vault page(passwords)
         if (cancelBtn) {
