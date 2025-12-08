@@ -155,31 +155,27 @@ export class Passwords {
                     }
                 };
 
+                const btnToggle = document.createElement('button');
+                btnToggle.className = 'eye-btn'; 
+                btnToggle.innerHTML = '👁️';
+                btnToggle.title = "Show/Hide password";
+                
+                btnToggle.onclick = (e) => {
+                    e.stopPropagation(); 
+                    divWrapper.classList.toggle('revealed');
+                };
+
                 divWrapper.appendChild(spanText);
                 divWrapper.appendChild(spanMask);
-                divWrapper.appendChild(btnCopyIcon)
+                divWrapper.appendChild(btnCopyIcon);
+                divWrapper.appendChild(btnToggle);
+                
                 tdPass.appendChild(divWrapper);
                 tr.appendChild(tdPass);
 
                 // Table column 'Action'
                 const tdAction = document.createElement('td');
                 tdAction.className = 'text-right';
-
-                // Show/Hide button
-                const btnToggle = document.createElement('button');
-                btnToggle.className = 'action-btn toggle-btn';
-                btnToggle.textContent = 'Show';
-                
-                btnToggle.onclick = () => {
-                    divWrapper.classList.toggle('revealed');
-                    const isRevealed = divWrapper.classList.contains('revealed');
-                    btnToggle.textContent = isRevealed ? 'Hide' : 'Show';
-                    if (isRevealed) {
-                        btnToggle.classList.add('active');
-                    } else {
-                        btnToggle.classList.remove('active');
-                    }
-                };
 
                 // Delete button
                 const btnDelete = document.createElement('button');
@@ -207,7 +203,6 @@ export class Passwords {
                     }
                 };
 
-                tdAction.appendChild(btnToggle);
                 tdAction.appendChild(btnDelete);
                 tr.appendChild(tdAction);
 
