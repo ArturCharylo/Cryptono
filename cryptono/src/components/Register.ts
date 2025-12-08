@@ -72,39 +72,45 @@ export class Register {
 
         registerForm?.addEventListener('submit', async (event: Event) => {
             event.preventDefault();
+            
             const username = (document.getElementById('username') as HTMLInputElement)?.value;
             const password = (document.getElementById('password') as HTMLInputElement)?.value;
             const email = (document.getElementById('email') as HTMLInputElement)?.value;
             const confirmPassword = (document.getElementById('confirm_password') as HTMLInputElement)?.value;
             
-            let error = '';
-            if (!username || !password || !confirmPassword){
-                error = "Please fill in all the fields"
+            // before the regex valiadtion verify that the fields aren't empty
+            if (!username || !password || !confirmPassword || !email) {
+                alert("Please fill in all the fields");
+                return;
             }
-            if (password !== confirmPassword){
-                error = "Passwords do not match";
-            }
-            if (error !== '') {
-                alert(error);
+            if (password !== confirmPassword) {
+                alert("Passwords do not match");
                 return;
             }
 
+            // Set loading state on the button for better UX
             if (registerBtn) {
                 registerBtn.classList.add('loading');
                 registerBtn.disabled = true;
             }
 
             try {
-                const registrationSuccess = await this.authorize(email, username, password, confirmPassword);
+                await this.authorize(email, username, password, confirmPassword);
 
-                if (registrationSuccess) {
-                    alert('Registration successful! You can now login.');
-                    this.navigate('/login');
+                // Sucess
+                alert('Registration successful! You can now login.');
+                this.navigate('/login');
+
+            } catch (error) {
+                // Handle errors
+                console.error(error);
+                if (error instanceof Error) {
+                    alert('Registration failed:\n' + error.message);
+                } else {
+                    alert('Registration failed due to an unknown error.');
                 }
-            }
-            catch (error) {
-                alert('Registration failed: ' + (error as Error).message);
             } finally {
+                // Reset loading state
                 if (registerBtn) {
                     registerBtn.classList.remove('loading');
                     registerBtn.disabled = false;
@@ -113,22 +119,29 @@ export class Register {
         });
     }
 
-    async authorize(email: string, username: string, password: string, repeatPass: string): Promise<boolean> {
-        // Regex
+    // This function only handles the logic for validation and throwing errors if any are found
+    async authorize(email: string, username: string, password: string, repeatPass: string): Promise<void> {
         const validations = registerValidation(email, username, password);
-        const isValid = validations.every(v => v.value.match(v.regex));
+        
+        // Validate with regex using .test for most optimal solution
+        const allValid = validations.every(v => {
+            const regexObj = v.regex instanceof RegExp ? v.regex : new RegExp(v.regex);
+            return regexObj.test(v.value);
+        });
 
-        if (!isValid) {
-            let errorMsg = '';
-            validations.forEach(v => {
-                if (!v.value.match(v.regex)) errorMsg += v.message + '\n';
-            });
-            throw new Error(errorMsg);
+        // Thorw an error if there are any found
+        if (!allValid) {
+            const errors = validations
+                .filter(v => {
+                    const regexObj = v.regex instanceof RegExp ? v.regex : new RegExp(v.regex);
+                    return !regexObj.test(v.value);
+                })
+                .map(v => v.message);
+            
+            throw new Error(errors.join('\n'));
         }
 
-        // Create user in indexedDB
+        // Create user in DB after all validation is complete
         await storageService.createUser(username, email, password, repeatPass);
-        
-        return true;
     }
 }
