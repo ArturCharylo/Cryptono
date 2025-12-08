@@ -1,46 +1,42 @@
 import { buffToBase64, base64ToBuff, stringToBuff, buffToString } from "../utils/buffer";
-
-// Configuration standards for cryptographic operations
-const PBKDF2_ITERATIONS = 100000; // Higher values increase security but also computation time
-const SALT_LENGTH = 16;
-const IV_LENGTH = 12; // Standard length for AES-GCM
+import { CRYPTO_KEYS } from "../constants/constants";
 
 export class CryptoService {
     private async importPassword(password: string): Promise<CryptoKey> {
-        return window.crypto.subtle.importKey(
+        return globalThis.crypto.subtle.importKey(
             "raw",
             stringToBuff(password) as BufferSource,
-            { name: "PBKDF2" },
+            { name: CRYPTO_KEYS.ALGO_KDF },
             false,
             ["deriveKey"]
         );
     }
 
     private async deriveKey(passwordKey: CryptoKey, salt: Uint8Array): Promise<CryptoKey> {
-        return window.crypto.subtle.deriveKey(
+        return globalThis.crypto.subtle.deriveKey(
             {
-                name: "PBKDF2",
+                name: CRYPTO_KEYS.ALGO_KDF,
                 salt: salt as BufferSource,
-                iterations: PBKDF2_ITERATIONS,
-                hash: "SHA-256"
+                iterations: CRYPTO_KEYS.PBKDF2_ITERATIONS,
+                hash: CRYPTO_KEYS.ALGO_HASH
             },
             passwordKey,
-            { name: "AES-GCM", length: 256 },
+            { name: CRYPTO_KEYS.ALGO_AES, length: 256 },
             false,
             ["encrypt", "decrypt"]
         );
     }
 
     async encrypt(masterPassword: string, plainText: string): Promise<string> {
-        const salt = window.crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
-        const iv = window.crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+        const salt = globalThis.crypto.getRandomValues(new Uint8Array(CRYPTO_KEYS.SALT_LENGTH));
+        const iv = globalThis.crypto.getRandomValues(new Uint8Array(CRYPTO_KEYS.IV_LENGTH));
 
         const passwordKey = await this.importPassword(masterPassword);
         const aesKey = await this.deriveKey(passwordKey, salt);
 
-        const encryptedContent = await window.crypto.subtle.encrypt(
+        const encryptedContent = await globalThis.crypto.subtle.encrypt(
             {
-                name: "AES-GCM",
+                name: CRYPTO_KEYS.ALGO_AES,
                 iv: iv
             },
             aesKey,
@@ -62,9 +58,9 @@ export class CryptoService {
             const passwordKey = await this.importPassword(masterPassword);
             const aesKey = await this.deriveKey(passwordKey, salt);
 
-            const decryptedContent = await window.crypto.subtle.decrypt(
+            const decryptedContent = await globalThis.crypto.subtle.decrypt(
                 {
-                    name: "AES-GCM",
+                    name: CRYPTO_KEYS.ALGO_AES,
                     iv: iv as BufferSource,
                 },
                 aesKey,
