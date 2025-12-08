@@ -177,6 +177,18 @@ export class Passwords {
                 const tdAction = document.createElement('td');
                 tdAction.className = 'text-right';
 
+                // Edit button
+                const btnEdit = document.createElement('button');
+                btnEdit.className = 'action-btn edit-btn';
+                btnEdit.textContent = 'Edit';
+
+                btnEdit.onclick = async () => {
+                    // Store ID of item for edit in sessionData so that editItem can get it
+                    await chrome.storage.session.set({ 'editingItemId': item.id });
+
+                    this.navigate('/editItem');
+                };
+
                 // Delete button
                 const btnDelete = document.createElement('button');
                 btnDelete.className = 'action-btn delete-btn';
@@ -203,6 +215,7 @@ export class Passwords {
                     }
                 };
 
+                tdAction.appendChild(btnEdit);
                 tdAction.appendChild(btnDelete);
                 tr.appendChild(tdAction);
 
