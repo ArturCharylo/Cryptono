@@ -82,11 +82,9 @@ export class Login {
 
                 if (loginSuccess) {
                     this.navigate('/passwords');
-                } else {
-                    alert('Invalid credentials');
                 }
             } catch (error) {
-                alert('Login failed: ' + error);
+                console.error(error);
             } finally {
                 // Reset loading state
                 if (loginBtn) {
@@ -97,26 +95,29 @@ export class Login {
         });
     }
 
-    async authenticate(username: string, password: string): Promise<boolean> {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                if (loginValidation(username, password).every(v => v.value.match(v.regex))){
-                    storageService.Login(username, password)
-                    .then(() => resolve(true))  // Successful login
-                    .catch((err) => {
-                        console.error(err);
-                        resolve(false); // Error: wrond password or server error
-                    });
+    // This function verifies fields from the login form with regex rules
+   async authenticate(username: string, password: string): Promise<boolean> {
+        // Validate regex
+        const validations = loginValidation(username, password);
+        const isValid = validations.every(v => v.value.match(v.regex));
+
+        if (!isValid) {
+            validations.forEach(v => {
+                if (!v.value.match(v.regex)) {
+                    alert(v.message);
                 }
-                else{
-                    loginValidation(username, password).forEach(v => {
-                        if (!v.value.match(v.regex)){
-                            alert(v.message);
-                        }
-                    });
-                    resolve(false);
-                }
-            }, 1000);
-        });
+            });
+            return false;
+        }
+
+        // 3Attempt login in storageService
+        try {
+            await storageService.Login(username, password);
+            return true; // Success
+        } catch (err) {
+            console.error(err);
+            alert('Invalid credentials'); // Clear communctiation with the user
+            return false;
+        }
     }
 }

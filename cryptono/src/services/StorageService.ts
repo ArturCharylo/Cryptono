@@ -1,8 +1,7 @@
 // src/services/StorageService.ts
-import type { VaultItem, EncryptedVaultItem } from '../types/index';
+import type { VaultItem, EncryptedVaultItem, User } from '../types/index';
 import { cryptoService } from './CryptoService';
-import { cookieService } from './CookieService';
-import { DB_CONFIG } from '../constants/constants';
+import { DB_CONFIG, STORAGE_KEYS } from '../constants/constants';
 
 const DB_NAME = DB_CONFIG.DB_NAME;
 const STORE_NAME = DB_CONFIG.STORE_NAME;
@@ -54,14 +53,17 @@ export class StorageService {
         }
     }
 
-    async createUser(username: string, email:string, masterPass: string, repeatPass: string): Promise<void> {
+    async createUser(username: string, email: string, masterPass: string, repeatPass: string): Promise<void> {
         if (masterPass !== repeatPass) {
             return Promise.reject(new Error('Passwords do not match'));
         }
         await this.ensureInit();
 
-        // encryption of validation token
-        const validationToken = await cryptoService.encrypt(masterPass, "VALID_USER");
+        // Encrypt data before entering DB promise
+        const [encryptedValidationToken, encryptedEmail] = await Promise.all([
+            cryptoService.encrypt(masterPass, "VALID_USER"),
+            cryptoService.encrypt(masterPass, email)
+        ]);
 
         return new Promise((resolve, reject) => {
             if (!this.db) return reject(new Error("Database not initialized"));
@@ -69,12 +71,11 @@ export class StorageService {
             const transaction = this.db.transaction([STORE_NAME], 'readwrite');
             const objectStore = transaction.objectStore(STORE_NAME);
             
-            // Save user
-            const newUser = { 
+            const newUser: User = { 
                 id: crypto.randomUUID(), 
-                username: username,
-                email: email,
-                validationToken: validationToken 
+                username: username, // plain text, which is neccessary for index in DB to work
+                email: encryptedEmail, // ciphertext
+                validationToken: encryptedValidationToken 
             }; 
             
             const request = objectStore.add(newUser);
@@ -82,7 +83,6 @@ export class StorageService {
             request.onsuccess = () => resolve();
             
             request.onerror = () => {
-                // Handle unique constraint error for username index
                 if (request.error && request.error.name === 'ConstraintError') {
                     reject(new Error('Username already exists'));
                 } else {
@@ -124,9 +124,7 @@ export class StorageService {
                     const decryptedCheck = await cryptoService.decrypt(masterPass, userRecord.validationToken);
                     
                     if (decryptedCheck === "VALID_USER") {
-                        const token = cookieService.setCookie(username);
-                        console.log("Zalogowano pomyślnie. Token:", token);
-                        chrome.storage.session.set({ masterPassword: masterPass });
+                        chrome.storage.session.set({ [STORAGE_KEYS.MASTER]: masterPass });
                         resolve();
                     } else {
                         reject(new Error('Invalid password'));

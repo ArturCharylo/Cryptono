@@ -4,7 +4,6 @@ export const DB_CONFIG = {
     DB_VERSION: 2,
 } as const
 
-export const COOKIES = {
-    AUTH: "authToken",
+export const STORAGE_KEYS = {
     MASTER: "masterPassword"
-}
+} as const

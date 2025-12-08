@@ -1,7 +1,5 @@
-import { COOKIES } from '../constants/constants';
-import { cookieService } from '../services/CookieService';
+import { STORAGE_KEYS } from '../constants/constants';
 import { storageService } from '../services/StorageService';
-import type { VaultItem } from '../types';
 
 export class Passwords {
     navigate: (path: string) => void;
@@ -61,34 +59,16 @@ export class Passwords {
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
-                console.log("Kliknięto wyloguj. Przed usunięciem:", document.cookie);
-                cookieService.DeleteCookie(COOKIES.AUTH);
-                console.log("Po usunięciu:", document.cookie);
+                chrome.storage.session.remove(STORAGE_KEYS.MASTER)
                 this.navigate('/login');
             });
         }
 
         // Handle Adding test item
         const addTestBtn = document.getElementById('add-test-btn');
-        if (addTestBtn) {
-            addTestBtn.addEventListener('click', async () => {
-                const newItem: VaultItem = {
-                    id: crypto.randomUUID(),
-                    url: 'google.com',
-                    username: 'user@example.com',
-                    password: 'SuperSecretPassword123!',
-                    createdAt: Date.now()
-                };
-                
-                const sessionData = await chrome.storage.session.get(COOKIES.MASTER);
-                const masterPassword = sessionData.masterPassword as string;
-
-                if (masterPassword) {
-                    await storageService.addItem(newItem, masterPassword);
-                    this.loadItems(); 
-                } else {
-                    this.navigate('/login');
-                }
+        if (addTestBtn){
+            addTestBtn.addEventListener('click', () => {
+                this.navigate('/addItem');
             });
         }
     }
@@ -98,7 +78,7 @@ export class Passwords {
         if (!listContainer) return;
 
         try {
-            const sessionData = await chrome.storage.session.get(COOKIES.MASTER);
+            const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
             const masterPassword = sessionData.masterPassword as string;
 
             if (!masterPassword) {
@@ -152,8 +132,33 @@ export class Passwords {
                 spanMask.className = 'password-mask';
                 spanMask.textContent = '••••••••';
 
+                const btnCopyIcon = document.createElement('button');
+                btnCopyIcon.className = 'copy-icon-btn';
+                btnCopyIcon.innerHTML = '📋';
+                btnCopyIcon.title = "Copy password"; // Text after hover
+
+                btnCopyIcon.onclick = async (e) => {
+                    e.stopPropagation(); // Handles unexpeted actions
+                    try {
+                        await navigator.clipboard.writeText(item.password);
+                        
+                        // Visual animation for copying passwords
+                        btnCopyIcon.innerHTML = '✅';
+                        btnCopyIcon.classList.add('success');
+
+                        setTimeout(() => {
+                            btnCopyIcon.innerHTML = '📋';
+                            btnCopyIcon.classList.remove('success');
+                        }, 2000);
+                        
+                    } catch (err) {
+                        console.error('Failed to copy:', err);
+                    }
+                };
+
                 divWrapper.appendChild(spanText);
                 divWrapper.appendChild(spanMask);
+                divWrapper.appendChild(btnCopyIcon)
                 tdPass.appendChild(divWrapper);
                 tr.appendChild(tdPass);
 
