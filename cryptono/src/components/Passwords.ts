@@ -79,11 +79,9 @@ export class Passwords {
 
         try {
             const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
-            const masterPassword = sessionData.masterPassword as string;
+            const masterPassword = sessionData[STORAGE_KEYS.MASTER] as string; // Poprawiłem klucz dostępu (było .masterPassword, a w AddItem używałeś stałej)
 
             if (!masterPassword) {
-                // Redirect to login if no master password found
-                // Technically this check is preformed in another compoment, but better be safe than sorry
                 this.navigate('/login');
                 return;
             }
@@ -100,33 +98,35 @@ export class Passwords {
                 return;
             }
 
-            // Building table with DOM API
-            // This method ensures that XSS attacks are handled
-            items.forEach(item => {
+            // Using DocumentFragment for optimalization
+            const fragment = document.createDocumentFragment();
+
+            // For of loop which is newer and better for handling async functions
+            for (const item of items) {
                 const tr = document.createElement('tr');
 
                 // Column 'Site'
                 const tdSite = document.createElement('td');
                 const spanSite = document.createElement('span');
                 spanSite.className = 'site-url';
-                spanSite.textContent = item.url; // 🛡️ XSS STOP
+                spanSite.textContent = item.url;
                 tdSite.appendChild(spanSite);
                 tr.appendChild(tdSite);
 
                 // Column 'Username'
                 const tdUser = document.createElement('td');
                 tdUser.className = 'username-cell';
-                tdUser.textContent = item.username; // 🛡️ XSS STOP
+                tdUser.textContent = item.username;
                 tr.appendChild(tdUser);
 
-                // Coulmn 'Password'
+                // Column 'Password'
                 const tdPass = document.createElement('td');
                 const divWrapper = document.createElement('div');
                 divWrapper.className = 'password-wrapper';
                 
                 const spanText = document.createElement('span');
                 spanText.className = 'password-text';
-                spanText.textContent = item.password; // 🛡️ XSS STOP
+                spanText.textContent = item.password;
                 
                 const spanMask = document.createElement('span');
                 spanMask.className = 'password-mask';
@@ -135,14 +135,13 @@ export class Passwords {
                 const btnCopyIcon = document.createElement('button');
                 btnCopyIcon.className = 'copy-icon-btn';
                 btnCopyIcon.innerHTML = '📋';
-                btnCopyIcon.title = "Copy password"; // Text after hover
+                btnCopyIcon.title = "Copy password";
 
                 btnCopyIcon.onclick = async (e) => {
-                    e.stopPropagation(); // Handles unexpeted actions
+                    e.stopPropagation();
                     try {
                         await navigator.clipboard.writeText(item.password);
                         
-                        // Visual animation for copying passwords
                         btnCopyIcon.innerHTML = '✅';
                         btnCopyIcon.classList.add('success');
 
@@ -166,11 +165,11 @@ export class Passwords {
                 const tdAction = document.createElement('td');
                 tdAction.className = 'text-right';
 
-                // SHow/Hide button
+                // Show/Hide button
                 const btnToggle = document.createElement('button');
                 btnToggle.className = 'action-btn toggle-btn';
                 btnToggle.textContent = 'Show';
-                // Add event listener directly to element
+                
                 btnToggle.onclick = () => {
                     divWrapper.classList.toggle('revealed');
                     const isRevealed = divWrapper.classList.contains('revealed');
@@ -186,11 +185,25 @@ export class Passwords {
                 const btnDelete = document.createElement('button');
                 btnDelete.className = 'action-btn delete-btn';
                 btnDelete.textContent = 'Delete';
-                btnDelete.onclick = () => {
+                btnDelete.onclick = async () => {
                     if (confirm("Are you sure you want to delete this record?")) {
-                        storageService.deleteItem(item.id).then(() => {
-                            this.loadItems();
-                        });
+                        try {
+                            // Wait for the item to be compleatly deleted from DB
+                            await storageService.deleteItem(item.id);
+                            
+                            // Delete element from DOM
+                            tr.remove(); 
+
+                            // Show 'no password' if table is empty after deletion 
+                            if (listContainer.children.length === 0) {
+                                const emptyTr = document.createElement('tr');
+                                emptyTr.innerHTML = '<td colspan="4" class="state-message empty">No passwords saved yet.</td>';
+                                listContainer.appendChild(emptyTr);
+                            }
+                        } catch (error) {
+                            console.error(error);
+                            alert("Failed to delete item.");
+                        }
                     }
                 };
 
@@ -198,9 +211,12 @@ export class Passwords {
                 tdAction.appendChild(btnDelete);
                 tr.appendChild(tdAction);
 
-                // Add table row
-                listContainer.appendChild(tr);
-            });
+                // Add to fragment for better memory handling
+                fragment.appendChild(tr);
+            }
+
+            // Append to HTML (keeps the runtime simple with a single DOM operation)
+            listContainer.appendChild(fragment);
 
         } catch (error) {
             console.error(error);
