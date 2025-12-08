@@ -233,6 +233,71 @@ export class StorageService {
             request.onerror = () => reject(request.error || new Error('Database error'));
         });
     }
+
+    // Editing vault items section
+    // Update exisiting element
+    async updateItem(item: VaultItem, masterPassword: string): Promise<void> {
+        await this.ensureInit();
+
+        // Encrypt data again
+        const encryptedUrl = await cryptoService.encrypt(masterPassword, item.url);
+        const encryptedUsername = await cryptoService.encrypt(masterPassword, item.username);
+        const encryptedPassword = await cryptoService.encrypt(masterPassword, item.password);
+
+        const encryptedItem: EncryptedVaultItem = {
+            id: item.id, // keep the same ID
+            url: encryptedUrl,
+            username: encryptedUsername,
+            password: encryptedPassword,
+            createdAt: item.createdAt
+        };
+
+        return new Promise((resolve, reject) => {
+            if (!this.db) return reject(new Error("DB error"));
+            const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+            const objectStore = transaction.objectStore(STORE_NAME);
+            
+            // Metoda .put() aktualizuje rekord jeśli klucz (id) istnieje, lub dodaje nowy
+            // .put() adds new record if no id match found, and updates the old one if found
+            const request = objectStore.put(encryptedItem);
+
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error || new Error('Error updating item'));
+        });
+    }
+
+    // This function allows for getting and decrypting only one item neccesary
+    async getItemDecrypted(id: string, masterPassword: string): Promise<VaultItem> {
+         await this.ensureInit();
+         return new Promise((resolve, reject) => {
+             if (!this.db) return reject(new Error("DB error"));
+             const transaction = this.db.transaction([STORE_NAME], 'readonly');
+             const objectStore = transaction.objectStore(STORE_NAME);
+             const request = objectStore.get(id);
+
+             request.onsuccess = async () => {
+                 const encryptedItem = request.result as EncryptedVaultItem;
+                 if (!encryptedItem) {
+                     reject(new Error("Item not found"));
+                     return;
+                 }
+                 try {
+                     const item: VaultItem = {
+                         id: encryptedItem.id,
+                         url: await cryptoService.decrypt(masterPassword, encryptedItem.url),
+                         username: await cryptoService.decrypt(masterPassword, encryptedItem.username),
+                         password: await cryptoService.decrypt(masterPassword, encryptedItem.password),
+                         createdAt: encryptedItem.createdAt
+                     };
+                     resolve(item);
+                 } catch (e) {
+                     reject(e);
+                 }
+             };
+             request.onerror = () => reject(request.error || new Error('Error getting item'));
+         });
+    }
+
 }
 
 export const storageService = new StorageService();
