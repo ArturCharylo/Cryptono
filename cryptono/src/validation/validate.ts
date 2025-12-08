@@ -67,6 +67,18 @@ function addValidation(url: string, username: string, password: string): Validat
     ]
 }
 
+function passValidation(password: string){
+    return [
+        {
+        value: password,
+        regex: passwordRegex,
+        fieldName: "Password",
+        message: "Wrong password format. Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.",
+        }
+    ]
+}
+
 export { loginValidation };
 export { registerValidation };
 export { addValidation };
+export { passValidation };
