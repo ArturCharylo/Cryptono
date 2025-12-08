@@ -16,8 +16,8 @@ export class StorageService {
             const openRequest = indexedDB.open(DB_NAME, DB_VERSION);
 
             openRequest.onerror = () => {
-                console.error("Błąd otwarcia bazy:", openRequest.error);
-                reject(openRequest.error);
+                console.error("Error opening database:", openRequest.error);
+                reject(openRequest.error || new Error("Failed to open database"));
             };
 
             openRequest.onsuccess = () => {
@@ -31,11 +31,11 @@ export class StorageService {
                 let objectStore: IDBObjectStore;
 
                 // Creating Object Store if it doesn't exist
-                if (!database.objectStoreNames.contains(STORE_NAME)) {
-                    objectStore = database.createObjectStore(STORE_NAME, { keyPath: 'id' });
-                } else {
+                if (database.objectStoreNames.contains(STORE_NAME)) {
                     // If it exists, get the existing object store
                     objectStore = (openRequest.transaction as IDBTransaction).objectStore(STORE_NAME);
+                } else {
+                    objectStore = database.createObjectStore(STORE_NAME, { keyPath: 'id' });
                 }
 
                 // Create index on 'username' for user lookup
@@ -55,7 +55,7 @@ export class StorageService {
 
     async createUser(username: string, email: string, masterPass: string, repeatPass: string): Promise<void> {
         if (masterPass !== repeatPass) {
-            return Promise.reject(new Error('Passwords do not match'));
+            throw new Error('Passwords do not match');
         }
         await this.ensureInit();
 
@@ -83,10 +83,10 @@ export class StorageService {
             request.onsuccess = () => resolve();
             
             request.onerror = () => {
-                if (request.error && request.error.name === 'ConstraintError') {
+                if (request.error?.name === 'ConstraintError') {
                     reject(new Error('Username already exists'));
                 } else {
-                    reject(request.error);
+                    reject(request.error || new Error('Username taken'));
                 }
             };
         });
@@ -164,7 +164,7 @@ export class StorageService {
             const request = objectStore.add(encryptedItem);
 
             request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
+            request.onerror = () => reject(request.error || new Error('Databse error'));
         });
     }
 
@@ -182,7 +182,7 @@ export class StorageService {
             request.onsuccess = async () => {
                 const allResults = request.result || [];
                 // Fliter out user records (which contain validationToken)
-                const encryptedItems = allResults.filter((record: any) => !record.validationToken);
+                const encryptedItems = allResults.filter((record: any) => !record.validationToken) as EncryptedVaultItem[];
                 
                 try {
                     // Decode each field of vault items
@@ -212,11 +212,11 @@ export class StorageService {
 
                     resolve(decryptedItems);
                 } catch (error) {
-                    console.error("Błąd deszyfracji:", error);
-                    reject(new Error("Nie udało się odszyfrować skarbca."));
+                    console.error("Decryption error:", error);
+                    reject(new Error("Failed to decrypt the vault"));
                 }
             };
-            request.onerror = () => reject(request.error);
+            request.onerror = () => reject(request.error || new Error('Falied Decryption'));
         });
     }
 
@@ -230,7 +230,7 @@ export class StorageService {
             const request = objectStore.delete(id);
             
             request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
+            request.onerror = () => reject(request.error || new Error('Database error'));
         });
     }
 }
