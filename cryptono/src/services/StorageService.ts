@@ -257,7 +257,6 @@ export class StorageService {
             const transaction = this.db.transaction([STORE_NAME], 'readwrite');
             const objectStore = transaction.objectStore(STORE_NAME);
             
-            // Metoda .put() aktualizuje rekord jeśli klucz (id) istnieje, lub dodaje nowy
             // .put() adds new record if no id match found, and updates the old one if found
             const request = objectStore.put(encryptedItem);
 
@@ -316,6 +315,7 @@ export class StorageService {
                 
                 return pageUrl.includes(itemUrl) || itemUrl.includes(pageUrl);
             } catch (e) {
+                console.log("Cryptono error" + e)
                 return false;
             }
         });
