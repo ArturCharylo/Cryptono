@@ -84,7 +84,12 @@ export class Login {
                     this.navigate('/passwords');
                 }
             } catch (error) {
-                console.error(error);
+                // this condition ensures that the users sees the error
+                if (error instanceof Error) {
+                    alert(error.message);
+                } else {
+                    alert('An unexpected error occurred');
+                }
             } finally {
                 // Reset loading state
                 if (loginBtn) {
@@ -99,18 +104,27 @@ export class Login {
    async authenticate(username: string, password: string): Promise<boolean> {
         // Validate regex
         const validations = loginValidation(username, password);
-        const isValid = validations.every(v => v.value.match(v.regex));
 
-        if (!isValid) {
-            validations.forEach(v => {
-                if (!v.value.match(v.regex)) {
-                    alert(v.message);
-                }
-            });
-            return false;
+        // Using .test for regex expressions is the quickes way as it returns only boolean values
+        // Convert to RegExp if value is a string
+        const allValid = validations.every(v => {
+            const regexObj = v.regex instanceof RegExp ? v.regex : new RegExp(v.regex);
+            return regexObj.test(v.value);
+        });
+
+        if (!allValid) {
+            const errors = validations
+                .filter(v => {
+                    const regexObj = v.regex instanceof RegExp ? v.regex : new RegExp(v.regex);
+                    return !regexObj.test(v.value);
+                })
+                .map(v => v.message);
+
+            // Throw error
+            throw new Error(errors.join('\n')); 
         }
 
-        // 3Attempt login in storageService
+        // Attempt login in storageService
         try {
             await storageService.Login(username, password);
             return true; // Success
