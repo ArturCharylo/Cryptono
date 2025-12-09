@@ -21,10 +21,15 @@
   "homepage": "https://github.com/ArturCharylo/C#readme",
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.2.1",
+    "@eslint/js": "^9.39.1",
     "@types/chrome": "^0.1.32",
     "@types/node": "^24.10.1",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "jiti": "^2.6.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.49.0",
     "vite": "^7.2.4",
     "vite-plugin-static-copy": "^3.1.4"
   },
