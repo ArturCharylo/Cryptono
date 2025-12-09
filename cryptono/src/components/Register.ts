@@ -22,22 +22,26 @@ export class Register {
                 <form class="login-form" id="register-form" name="register-form">
                     <div class="input-group">
                         <label for="username">Username</label>
-                        <input type="text" placeholder="Enter your username" id="username" name="username" class="form-input" required/>
+                        <input type="text" placeholder="Enter your username" id="username" name="username" class="form-input"/>
+                        <div class="input-error" id="username-error"></div>
                     </div>
 
                     <div class="input-group">
                         <label for="email">Email</label>
-                        <input type="email" placeholder="Enter your email" id="email" name="email" class="form-input" required/>
+                        <input type="text" placeholder="Enter your email" id="email" name="email" class="form-input"/>
+                        <div class="input-error" id="email-error"></div>
                     </div>
 
                     <div class="input-group">
                         <label for="password">Password</label>
-                        <input type="password" placeholder="Enter your password" id="password" name="password" class="form-input" required/>
+                        <input type="password" placeholder="Enter your password" id="password" name="password" class="form-input"/>
+                        <div class="input-error" id="password-error"></div>
                     </div>
 
                     <div class="input-group">
                         <label for="confirm_password">Confirm Password</label>
-                        <input type="password" placeholder="Confirm your password" id="confirm_password" name="confirm_password" class="form-input" required/>
+                        <input type="password" placeholder="Confirm your password" id="confirm_password" name="confirm_password" class="form-input"/>
+                        <div class="input-error" id="confirm_password-error"></div>
                     </div>
 
                     <button type="submit" class="login-btn register-btn">
@@ -62,6 +66,7 @@ export class Register {
         const registerForm = document.getElementById('register-form') as HTMLFormElement;
         const registerBtn = document.querySelector('.register-btn') as HTMLButtonElement;
         const loginLink = document.getElementById('go-to-login');
+        const inputList = document.querySelectorAll('.form-input') as NodeListOf<HTMLInputElement>;
 
         if (loginLink) {
             loginLink.addEventListener('click', (e) => {
@@ -70,21 +75,66 @@ export class Register {
             });
         }
 
+        for (const input of inputList) {
+            input.addEventListener('input', () => {
+                const errorDiv = document.getElementById(`${input.id}-error`);
+                if (errorDiv) {
+                    this.clearField(errorDiv);
+                }
+            });
+        }
+
         registerForm?.addEventListener('submit', async (event: Event) => {
             event.preventDefault();
             
-            const username = (document.getElementById('username') as HTMLInputElement)?.value;
-            const password = (document.getElementById('password') as HTMLInputElement)?.value;
-            const email = (document.getElementById('email') as HTMLInputElement)?.value;
-            const confirmPassword = (document.getElementById('confirm_password') as HTMLInputElement)?.value;
+            let isValid = true;
+
+            const username = inputList.values().find((e) => e.id === "username")?.value;
+            const password = inputList.values().find((e) => e.id === "password")?.value;
+            const email = inputList.values().find((e) => e.id === "email")?.value;
+            const confirmPassword = inputList.values().find((e) => e.id === "confirm_password")?.value;
             
-            // before the regex valiadtion verify that the fields aren't empty
+            const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+            // check if fields aren't empty
             if (!username || !password || !confirmPassword || !email) {
-                alert("Please fill in all the fields");
-                return;
+                for (const input of inputList) {
+                    const errorDiv = document.getElementById(`${input.id}-error`);
+                    if (errorDiv) {
+                        this.clearField(errorDiv);
+                        if (!input.value) {
+                            errorDiv.appendChild(document.createElement('p'));
+                            errorDiv.lastChild!.textContent = 'This field is required';
+                        } 
+                    }
+                }
+                isValid = false;
             }
-            if (password !== confirmPassword) {
-                alert("Passwords do not match");
+
+            // check if email is valid
+            if (email && !emailRegex.test(email)) {
+                const emailInput = inputList.values().find((e) => e.id === "email");
+                const errorDiv = document.getElementById(`${emailInput?.id}-error`);
+                if (errorDiv) {
+                    this.clearField(errorDiv);
+                    errorDiv.appendChild(document.createElement('p'));
+                    errorDiv.lastChild!.textContent = 'Invalid email format';
+                }
+                isValid = false;
+            }
+            // check if passwords match
+            if (confirmPassword && password !== confirmPassword) {
+                const confirmPasswordInput = inputList.values().find((e) => e.id === "confirm_password");
+                const errorDiv = document.getElementById(`${confirmPasswordInput?.id}-error`);
+                if (errorDiv) {
+                    this.clearField(errorDiv);
+                    errorDiv.appendChild(document.createElement('p'));
+                    errorDiv.lastChild!.textContent = 'Passwords do not match';
+                }
+                isValid = false;
+            }
+
+            if (!isValid) {
                 return;
             }
 
@@ -95,7 +145,7 @@ export class Register {
             }
 
             try {
-                await this.authorize(email, username, password, confirmPassword);
+                await this.authorize(email!, username!, password!, confirmPassword!);
 
                 // Sucess
                 alert('Registration successful! You can now login.');
@@ -118,6 +168,16 @@ export class Register {
             }
         });
     }
+
+    // Clear all error messages in the field
+    clearField(field: HTMLElement) {
+        if (field.childElementCount > 0) {
+            while (field.firstChild) {
+                field.removeChild(field.firstChild);
+            }
+        }
+    }
+
 
     // This function only handles the logic for validation and throwing errors if any are found
     async authorize(email: string, username: string, password: string, repeatPass: string): Promise<void> {
