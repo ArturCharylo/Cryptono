@@ -64,6 +64,17 @@
     gap: 6px;
 }
 
+.input-error {
+    min-height: 1rem;
+}
+
+.input-error p{
+    margin: 0;
+    color: red;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
 .input-group label {
     font-size: 0.85rem;
     font-weight: 600;
