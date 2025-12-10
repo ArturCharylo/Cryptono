@@ -1,5 +1,6 @@
 import { registerValidation } from '../validation/validate';
 import { storageService } from '../services/StorageService';
+import { clearField, setErrorMessage, setInputClassError, showToastMessage, ToastType } from '../utils/messages';
 
 export class Register {
     navigate: (path: string) => void;
@@ -77,10 +78,10 @@ export class Register {
 
         for (const input of inputList) {
             input.addEventListener('input', () => {
-                input.classList.remove('form-input-error');
+                setInputClassError(input, false);
                 const errorDiv = document.getElementById(`${input.id}-error`);
                 if (errorDiv) {
-                    this.clearField(errorDiv);
+                    clearField(errorDiv);
                 }
             });
         }
@@ -102,11 +103,10 @@ export class Register {
                 for (const input of inputList) {
                     const errorDiv = document.getElementById(`${input.id}-error`);
                     if (errorDiv) {
-                        this.clearField(errorDiv);
+                        clearField(errorDiv);
                         if (!input.value) {
-                            input.classList.add('form-input-error');
-                            errorDiv.appendChild(document.createElement('p'));
-                            errorDiv.lastChild!.textContent = 'This field is required';
+                            setInputClassError(input, true);
+                            setErrorMessage(errorDiv, 'This field is required');
                         } 
                     }
                 }
@@ -118,10 +118,9 @@ export class Register {
                 const emailInput = inputList.values().find((e) => e.id === "email");
                 const errorDiv = document.getElementById(`${emailInput?.id}-error`);
                 if (emailInput && errorDiv) {
-                    emailInput.classList.add('form-input-error');
-                    this.clearField(errorDiv);
-                    errorDiv.appendChild(document.createElement('p'));
-                    errorDiv.lastChild!.textContent = 'Invalid email format';
+                    setInputClassError(emailInput, true);
+                    clearField(errorDiv);
+                    setErrorMessage(errorDiv, 'Invalid email format');
                 }
                 isValid = false;
             }
@@ -130,10 +129,9 @@ export class Register {
                 const confirmPasswordInput = inputList.values().find((e) => e.id === "confirm_password");
                 const errorDiv = document.getElementById(`${confirmPasswordInput?.id}-error`);
                 if (confirmPasswordInput && errorDiv) {
-                    confirmPasswordInput.classList.add('form-input-error');
-                    this.clearField(errorDiv);
-                    errorDiv.appendChild(document.createElement('p'));
-                    errorDiv.lastChild!.textContent = 'Passwords do not match';
+                    setInputClassError(confirmPasswordInput, true);
+                    clearField(errorDiv);
+                    setErrorMessage(errorDiv, 'Passwords do not match');
                 }
                 isValid = false;
             }
@@ -151,17 +149,17 @@ export class Register {
             try {
                 await this.authorize(email!, username!, password!, confirmPassword!);
 
-                // Sucess
-                alert('Registration successful! You can now login.');
+                // Success
+                showToastMessage('Registration successful! You can now log in.', ToastType.SUCCESS, 3000);
                 this.navigate('/login');
 
             } catch (error) {
                 // Handle errors
                 console.error(error);
                 if (error instanceof Error) {
-                    alert('Registration failed:\n' + error.message);
+                    showToastMessage('Registration failed:\n' + error.message, ToastType.ERROR, error.message.length > 50 ? 6000 : 2500);
                 } else {
-                    alert('Registration failed due to an unknown error.');
+                    showToastMessage('Registration failed due to an unknown error.', ToastType.ERROR, 2500);
                 }
             } finally {
                 // Reset loading state
@@ -173,16 +171,6 @@ export class Register {
         });
     }
 
-    // Clear all error messages in the field
-    clearField(field: HTMLElement) {
-        if (field.childElementCount > 0) {
-            while (field.firstChild) {
-                field.removeChild(field.firstChild);
-            }
-        }
-    }
-
-
     // This function only handles the logic for validation and throwing errors if any are found
     async authorize(email: string, username: string, password: string, repeatPass: string): Promise<void> {
         const validations = registerValidation(email, username, password);
@@ -193,7 +181,7 @@ export class Register {
             return regexObj.test(v.value);
         });
 
-        // Thorw an error if there are any found
+        // Throw an error if there are any found
         if (!allValid) {
             const errors = validations
                 .filter(v => {
