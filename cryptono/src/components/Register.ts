@@ -77,6 +77,7 @@ export class Register {
 
         for (const input of inputList) {
             input.addEventListener('input', () => {
+                input.classList.remove('form-input-error');
                 const errorDiv = document.getElementById(`${input.id}-error`);
                 if (errorDiv) {
                     this.clearField(errorDiv);
@@ -103,6 +104,7 @@ export class Register {
                     if (errorDiv) {
                         this.clearField(errorDiv);
                         if (!input.value) {
+                            input.classList.add('form-input-error');
                             errorDiv.appendChild(document.createElement('p'));
                             errorDiv.lastChild!.textContent = 'This field is required';
                         } 
@@ -115,7 +117,8 @@ export class Register {
             if (email && !emailRegex.test(email)) {
                 const emailInput = inputList.values().find((e) => e.id === "email");
                 const errorDiv = document.getElementById(`${emailInput?.id}-error`);
-                if (errorDiv) {
+                if (emailInput && errorDiv) {
+                    emailInput.classList.add('form-input-error');
                     this.clearField(errorDiv);
                     errorDiv.appendChild(document.createElement('p'));
                     errorDiv.lastChild!.textContent = 'Invalid email format';
@@ -126,7 +129,8 @@ export class Register {
             if (confirmPassword && password !== confirmPassword) {
                 const confirmPasswordInput = inputList.values().find((e) => e.id === "confirm_password");
                 const errorDiv = document.getElementById(`${confirmPasswordInput?.id}-error`);
-                if (errorDiv) {
+                if (confirmPasswordInput && errorDiv) {
+                    confirmPasswordInput.classList.add('form-input-error');
                     this.clearField(errorDiv);
                     errorDiv.appendChild(document.createElement('p'));
                     errorDiv.lastChild!.textContent = 'Passwords do not match';

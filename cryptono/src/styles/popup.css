@@ -55,13 +55,13 @@
 .login-form {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 10px;
 }
 
 .input-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
 }
 
 .input-error {
@@ -111,6 +111,10 @@
     box-shadow: 0 0 15px var(--glow-color-subtle), inset 0 0 5px rgba(117, 227, 255, 0.1);
     
     animation: subtleGlowPulse 2s infinite alternate;
+}
+
+.form-input-error {
+    border-color: red;
 }
 
 @keyframes subtleGlowPulse {
