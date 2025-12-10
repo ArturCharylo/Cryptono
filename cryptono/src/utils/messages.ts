@@ -48,7 +48,7 @@ export const showToastMessage = (message: string, type: number, duration: number
         case ToastType.NORMAL: // normal
             toastDiv.style.backgroundColor = "#333333";
             break;
-        case ToastType.SUCCESS:
+        case ToastType.SUCCESS: // success
             toastDiv.style.backgroundColor = "#4BB543";
             break;
         case ToastType.ERROR: // error

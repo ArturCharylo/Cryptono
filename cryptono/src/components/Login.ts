@@ -1,5 +1,6 @@
 import { loginValidation } from '../validation/validate';
 import { storageService } from '../services/StorageService';
+import { clearField, setErrorMessage, setInputClassError, showToastMessage, ToastType } from '../utils/messages';
 
 export class Login {
     navigate: (path: string) => void;
@@ -23,11 +24,13 @@ export class Login {
                     <div class="input-group">
                         <label for="username">Username</label>
                         <input type="text" placeholder="Enter your username" id="username" name="username" class="form-input"/>
+                        <div class="input-error" id="username-error"></div>
                     </div>
 
                     <div class="input-group">
                         <label for="password">Password</label>
                         <input type="password" placeholder="Enter your password" id="password" name="password" class="form-input"/>
+                        <div class="input-error" id="password-error"></div>
                     </div>
 
                     <button type="submit" class="login-btn">
@@ -52,6 +55,7 @@ export class Login {
         const loginForm = document.getElementById('login-form') as HTMLFormElement;
         const loginBtn = document.querySelector('.login-btn') as HTMLButtonElement;
         const registerLink = document.getElementById('go-to-register');
+        const inputList = document.querySelectorAll('.form-input') as NodeListOf<HTMLInputElement>;
 
         if (registerLink) {
             registerLink.addEventListener('click', (e) => {
@@ -60,17 +64,42 @@ export class Login {
             });
         }
 
+        for (const input of inputList) {
+            input.addEventListener('input', () => {
+                setInputClassError(input, false);
+                const errorDiv = document.getElementById(`${input.id}-error`);
+                if (errorDiv) {
+                    clearField(errorDiv);
+                }
+            });
+        }
+
         loginForm?.addEventListener('submit', async (event: Event) => {
             event.preventDefault();
 
-            const username = (document.getElementById('username') as HTMLInputElement)?.value;
-            const password = (document.getElementById('password') as HTMLInputElement)?.value;
+            let isValid = true;
+
+            const username = inputList.values().find((e) => e.id === "username")?.value;
+            const password = inputList.values().find((e) => e.id === "password")?.value;
 
             if (!username || !password) {
-                alert('Please fill in all fields');
-                return;
+                for (const input of inputList) {
+                    const errorDiv = document.getElementById(`${input.id}-error`);
+                    if (errorDiv) {
+                        clearField(errorDiv);
+                        if (!input.value) {
+                            setInputClassError(input, true);
+                            setErrorMessage(errorDiv, 'This field is required');
+                        } 
+                    }
+                }
+                isValid = false;
             }
 
+            if (!isValid) {
+                return;
+            }
+            
             // Set loading state
             if (loginBtn) {
                 loginBtn.classList.add('loading');
@@ -78,15 +107,15 @@ export class Login {
             }
 
             try {
-                await this.authenticate(username, password);
+                await this.authenticate(username!, password!);
 
                 this.navigate('/passwords');
             } catch (error) {
                 // Catch error and display to user
                 if (error instanceof Error) {
-                    alert(error.message);
+                    showToastMessage(error.message, ToastType.ERROR, error.message.length > 50 ? 6000 : 2500);
                 } else {
-                    alert('An unexpected error occurred');
+                    showToastMessage('An unexpected error occurred.', ToastType.ERROR, 2500);
                 }
             } finally {
                 // Reset loading state
