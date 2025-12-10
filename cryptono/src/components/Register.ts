@@ -1,4 +1,4 @@
-import { registerValidation } from '../validation/validate';
+import { emailRegex, registerValidation } from '../validation/validate';
 import { storageService } from '../services/StorageService';
 import { clearField, setErrorMessage, setInputClassError, showToastMessage, ToastType } from '../utils/messages';
 
@@ -91,13 +91,12 @@ export class Register {
             
             let isValid = true;
 
-            const username = inputList.values().find((e) => e.id === "username")?.value;
-            const password = inputList.values().find((e) => e.id === "password")?.value;
-            const email = inputList.values().find((e) => e.id === "email")?.value;
-            const confirmPassword = inputList.values().find((e) => e.id === "confirm_password")?.value;
+            const formData = new FormData(registerForm);
+            const username = formData.get('username') as string;
+            const password = formData.get('password') as string;
+            const email = formData.get('email') as string;
+            const confirmPassword = formData.get('confirm_password') as string;
             
-            const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
             // check if fields aren't empty
             if (!username || !password || !confirmPassword || !email) {
                 for (const input of inputList) {
@@ -147,7 +146,7 @@ export class Register {
             }
 
             try {
-                await this.authorize(email!, username!, password!, confirmPassword!);
+                await this.authorize(email, username, password, confirmPassword);
 
                 // Success
                 showToastMessage('Registration successful! You can now log in.', ToastType.SUCCESS, 3000);

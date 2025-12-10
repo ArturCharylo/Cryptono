@@ -79,8 +79,9 @@ export class Login {
 
             let isValid = true;
 
-            const username = inputList.values().find((e) => e.id === "username")?.value;
-            const password = inputList.values().find((e) => e.id === "password")?.value;
+            const formData = new FormData(loginForm);
+            const username = formData.get('username') as string;
+            const password = formData.get('password') as string;
 
             if (!username || !password) {
                 for (const input of inputList) {
@@ -107,7 +108,7 @@ export class Login {
             }
 
             try {
-                await this.authenticate(username!, password!);
+                await this.authenticate(username, password);
 
                 this.navigate('/passwords');
             } catch (error) {
