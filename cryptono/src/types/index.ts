@@ -33,3 +33,13 @@ export interface Validation {
     fieldName: string;
     message: string;
 }
+
+export interface AutoFillResponse {
+    success: boolean;
+    // (?) symbol marks the field as optional
+    error?: string; 
+    data?: {
+        username: string;
+        password: string;
+    };
+}
