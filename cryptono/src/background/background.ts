@@ -1,5 +1,6 @@
 import { storageService } from '../services/StorageService';
 import { STORAGE_KEYS } from '../constants/constants';
+import type { AutoFillResponse } from '../types';
 
 // Wait for call from ContentScript
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -9,7 +10,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 });
 
-async function handleAutofill(url: string, sendResponse: (response: any) => void) {
+async function handleAutofill(url: string, sendResponse: (response: AutoFillResponse) => void) {
   try {
     // Check if user is logged in
     const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);

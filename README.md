@@ -45,7 +45,7 @@ The application features a custom-built Single Page Application (SPA) interface 
 
 Cryptono takes security seriously. Here is how your data is handled:
 
-1.  **Key Derivation:** Your master password is never stored. It is used to derive a cryptographic key using **PBKDF2** (SHA-256, 100,000 iterations, random salt).
+1.  **Key Derivation:** Your master password is never stored. It is used to derive a cryptographic key using **PBKDF2** (SHA-256, 1 milion iterations, random salt).
 2.  **Encryption:** Vault items (URL, Username, Password) are encrypted using **AES-GCM**.
 3.  **Storage:** The encrypted blobs (ciphertext + IV + salt) are stored in the browser's **IndexedDB**.
 4.  **Isolation:** The extension runs in a sandboxed environment consistent with Chrome's MV3 security standards.
