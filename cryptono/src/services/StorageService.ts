@@ -182,7 +182,7 @@ export class StorageService {
             request.onsuccess = async () => {
                 const allResults = request.result || [];
                 // Fliter out user records (which contain validationToken)
-                const encryptedItems = allResults.filter((record: any) => !record.validationToken) as EncryptedVaultItem[];
+                const encryptedItems = allResults.filter((record: User) => !record.validationToken) as EncryptedVaultItem[];
                 
                 try {
                     // Decode each field of vault items
@@ -328,7 +328,7 @@ export class StorageService {
 
             return false;
         } catch (e) {
-            console.log("Cryptono error processing URL: " + e);
+            console.debug("Cryptono error processing URL: " + e);
             return false;
         }
     });

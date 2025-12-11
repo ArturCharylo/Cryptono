@@ -1,5 +1,3 @@
-console.log('Cryptono: Content script active');
-
 const autoFill = async () => {
   // Call background.ts for user data on current host
   const hostname = globalThis.location.hostname;
@@ -11,7 +9,6 @@ const autoFill = async () => {
     });
 
     if (response?.success && response?.data) {
-      console.log('Cryptono: Credentials found, attempting autofill...');
       fillForms(response.data.username, response.data.password);
     } else {
       // Vault locked or no matching data found - ignore request
