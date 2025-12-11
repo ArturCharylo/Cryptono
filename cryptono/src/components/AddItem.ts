@@ -49,7 +49,6 @@ export class AddItem {
                                 placeholder="Str0ng_P@Ssword" 
                                 class="form-input form-input-with-icon" 
                             />
-                            <div class="input-error" id="password-error"></div>
                             <button 
                                 type="button" 
                                 id="toggle-pass-visibility" 
@@ -57,6 +56,7 @@ export class AddItem {
                                 title="Show/Hide password"
                             >👁️</button>
                         </div>
+                        <div class="input-error" id="password-error"></div>
                     </div>
 
                     <div class="input-group">
@@ -90,7 +90,6 @@ export class AddItem {
         const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
         // Handle displaying errors for better UX
         const inputList = form.querySelectorAll('.form-input') as NodeListOf<HTMLInputElement>
-
         
         for (const input of inputList) {
             input.addEventListener('input', () => {
@@ -176,7 +175,13 @@ export class AddItem {
             }
 
             if (password !== rePass) {
-                showToastMessage('Passwords do not match', ToastType.ERROR, 2500)
+                const rePassInput = inputList.values().find((e) => e.id === "re-pass");
+                const errorDiv = document.getElementById(`${rePassInput?.id}-error`);
+                if (rePassInput && errorDiv) {
+                    setInputClassError(rePassInput, true);
+                    clearField(errorDiv);
+                    setErrorMessage(errorDiv, 'Passwords do not match');
+                }
                 return;
             }
 
@@ -213,7 +218,7 @@ export class AddItem {
             } catch (error) {            
                 // handle expired sessions
                 if ((error as Error).message.includes("Session expired")) {
-                    alert((error as Error).message);
+                    showToastMessage(((error as Error).message), ToastType.ERROR, 2500);
                     this.navigate('/login');
                 }
                 else if (error instanceof Error) {

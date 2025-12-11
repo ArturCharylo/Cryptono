@@ -3,6 +3,7 @@ import { STORAGE_KEYS } from "../constants/constants";
 import type { VaultItem } from "../types";
 import { addValidation } from "../validation/validate";
 import { generateStrongPassword } from "../utils/passGen";
+import { clearField, setErrorMessage, setInputClassError, showToastMessage, ToastType } from '../utils/messages';
 
 export class EditItem {
     navigate: (path: string) => void;
@@ -25,11 +26,13 @@ export class EditItem {
                 <form class="login-form" id="edit-form">
                     <div class="input-group">
                         <label for="url">URL</label>
-                        <input type="text" name="url" id="url" placeholder="example.com" class="form-input" required/>
+                        <input type="text" name="url" id="url" placeholder="example.com" class="form-input"/>
+                        <div class="input-error" id="url-error"></div>
                     </div>
                     <div class="input-group">
                         <label for="username">Username</label>
-                        <input type="text" name="username" id="username" placeholder="Enter your username" class="form-input" required/>
+                        <input type="text" name="username" id="username" placeholder="Enter your username" class="form-input"/>
+                        <div class="input-error" id="username-error"></div>
                     </div>
                     
                     <div class="input-group">
@@ -45,7 +48,6 @@ export class EditItem {
                                 id="password" 
                                 placeholder="Str0ng_P@Ssword" 
                                 class="form-input form-input-with-icon" 
-                                required
                             />
                             <button 
                                 type="button" 
@@ -54,11 +56,13 @@ export class EditItem {
                                 title="Show/Hide password"
                             >👁️</button>
                         </div>
+                        <div class="input-error" id="password-error"></div>
                     </div>
 
                     <div class="input-group">
                         <label for="re-pass">Repeat Password</label>
-                        <input type="password" name="re-pass" id="re-pass" placeholder="Repeat your password" class="form-input" required/>
+                        <input type="password" name="re-pass" id="re-pass" placeholder="Repeat your password" class="form-input"/>
+                        <div class="input-error" id="re-pass-error"></div>
                     </div>
 
                     <button type="submit" class="login-btn save-btn">
@@ -85,6 +89,20 @@ export class EditItem {
         const cancelBtn = document.getElementById('cancel-btn');
         const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
 
+        // Handle displaying errors for better UX
+        const inputList = form.querySelectorAll('.form-input') as NodeListOf<HTMLInputElement>
+
+        for (const input of inputList) {
+            input.addEventListener('input', () => {
+                setInputClassError(input, false);
+                const errorDiv = document.getElementById(`${input.id}-error`);
+                if (errorDiv) {
+                    clearField(errorDiv);
+                }
+            });
+        }
+
+        // Form elements
         const genBtn = document.getElementById('gen-pass-btn');
         const passInput = document.getElementById('password') as HTMLInputElement;
         const rePassInput = document.getElementById('re-pass') as HTMLInputElement;
@@ -92,10 +110,10 @@ export class EditItem {
         const urlInput = document.getElementById('url') as HTMLInputElement;
         const usernameInput = document.getElementById('username') as HTMLInputElement;
 
-        // 1. Ładowanie danych do edycji
+        // Load data for editing
         (async () => {
             try {
-                // Pobieramy ID i hasło główne z sesji
+                // Get ID and masterPass from session
                 const session = await chrome.storage.session.get([STORAGE_KEYS.MASTER, 'editingItemId']);
                 const id = session['editingItemId'] as string;
                 const masterPass = session[STORAGE_KEYS.MASTER] as string;
@@ -105,23 +123,22 @@ export class EditItem {
                      return;
                 }
 
-                // Pobieramy odszyfrowany element
+                // Get decrypted element
                 const item = await storageService.getItemDecrypted(id, masterPass);
                 
-                // Wypełniamy formularz
+                // Fill form with data from DB
                 urlInput.value = item.url;
                 usernameInput.value = item.username;
                 passInput.value = item.password;
                 rePassInput.value = item.password; 
                 
-            } catch (e) {
-                console.error(e);
-                alert("Error loading item data.");
+            } catch (error) {
+                showToastMessage(((error as Error).message), ToastType.ERROR, 2500);
                 this.navigate('/passwords');
             }
         })();
 
-        // 2. Obsługa Generatora Haseł
+        // Handle Password generator
         if (genBtn) {
             genBtn.addEventListener('click', () => {
                 const newPassword = generateStrongPassword();
@@ -136,7 +153,7 @@ export class EditItem {
             });
         }
 
-        // 3. Obsługa Pokazywania Hasła
+        // Handle showing password
         if (toggleVisBtn) {
             toggleVisBtn.addEventListener('click', () => {
                 const type = passInput.type === "password" ? "text" : "password";
@@ -144,25 +161,53 @@ export class EditItem {
             });
         }
 
-        // 4. Obsługa Anulowania
+        // Handle canceling
         if (cancelBtn) {
             cancelBtn.addEventListener('click', () => {
-                chrome.storage.session.remove('editingItemId'); // Sprzątamy ID
+                chrome.storage.session.remove('editingItemId'); // Clean ID
                 this.navigate('/passwords');
             });
         }
 
-        // 5. Zapis (Aktualizacja)
+        // Handle Save
         form?.addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            // Error handling
+            let isValid: boolean = true;
+
+            // Form fields
             const url = urlInput.value;
             const username = usernameInput.value;
             const password = passInput.value;
             const rePass = rePassInput.value;
 
-            if (password !== rePass) {
-                alert("Passwords do not match!");
+             if (password !== rePass) {
+                const rePassInput = inputList.values().find((e) => e.id === "re-pass");
+                const errorDiv = document.getElementById(`${rePassInput?.id}-error`);
+                if (rePassInput && errorDiv) {
+                    setInputClassError(rePassInput, true);
+                    clearField(errorDiv);
+                    setErrorMessage(errorDiv, 'Passwords do not match');
+                }
+                return;
+            }
+
+            if (!url || !username || !password || !rePass){
+            for (const input of inputList) {
+                    const errorDiv = document.getElementById(`${input.id}-error`);
+                    if (errorDiv) {
+                        clearField(errorDiv);
+                        if (!input.value) {
+                            setInputClassError(input, true);
+                            setErrorMessage(errorDiv, 'This field is required');
+                        } 
+                    }
+                }
+                isValid = false;
+            }
+
+            if (!isValid) {
                 return;
             }
 
@@ -183,27 +228,28 @@ export class EditItem {
                 }
 
                 const updatedItem: VaultItem = {
-                    id: id, // Zachowujemy stare ID
+                    id: id, // Keep old ID
                     url: url,
                     username: username,
                     password: password,
-                    createdAt: Date.now() // Można zaktualizować datę modyfikacji
+                    createdAt: Date.now() // Updated date
                 };
 
                 await storageService.updateItem(updatedItem, masterPassword);
 
-                // Czyścimy ID edycji i wracamy
+                // Clear edit ID and return
                 await chrome.storage.session.remove('editingItemId');
                 this.navigate('/passwords');
 
             } catch (error) {
-                console.error(error);
                 if ((error as Error).message.includes("Session expired")) {
-                    alert((error as Error).message);
+                    showToastMessage(((error as Error).message), ToastType.ERROR, 2500);
                     this.navigate('/login');
+                }else if (error instanceof Error) {
+                    showToastMessage(error.message, ToastType.ERROR, error.message.length > 50 ? 6000 : 2500);
                 } else {
-                    alert((error as Error).message);
-                }
+                    showToastMessage('An unexpected error occurred.', ToastType.ERROR, 2500);
+                }    
             } finally {
                 if (submitBtn) {
                     submitBtn.classList.remove('loading');
