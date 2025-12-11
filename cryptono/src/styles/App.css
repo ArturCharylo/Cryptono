@@ -18,6 +18,80 @@
     --glass-border-highlight: rgba(255, 255, 255, 0.3);
     --glass-blur: blur(20px) saturate(110%); /* blur to imitate glass effect */
     --glow-color-subtle: rgba(117, 227, 255, 0.3); /* Light, delicate glow */
+
+
+    /*Button styles*/
+    --gen-button-bg: rgba(117, 227, 255, 0.1);
+    --ben-bg-hover: rgba(117, 227, 255, 0.2);
+    --gen-border: rgba(117, 227, 255, 0.3);
+    --gen-color: rgba(117, 227, 255, 0.9);
+    --gen-shadow: rgba(117, 227, 255, 0.2);
+
+    /*Cancel and save button styles are strictly for hover properties as default ones are inherited*/
+    --cancel-border: rgba(252, 58, 58, 0.4);
+    --cancel-shadow-1: rgba(248, 0, 0, 0.329);
+    --cancel-shadow-2: rgba(248, 0, 0, 0.1);
+
+    --save-border: rgba(0, 255, 42, 0.4);
+    --save-shadow-1: rgba(0, 255, 68, 0.363);
+    --save-shadow-2: rgba(0, 255, 68, 0.15);
+    --save-bg: rgba(0, 40, 10, 0.3);
+
+    /* Password Table & Actions Variables */
+    --shadow-card: rgba(0, 0, 0, 0.2);
+    --bg-overlay-dark: rgba(0, 0, 0, 0.2);
+    
+    --border-dim: rgba(255, 255, 255, 0.1);
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    --border-medium: rgba(255, 255, 255, 0.2);
+    --border-semi: rgba(255, 255, 255, 0.5);
+
+    --text-muted: rgba(255, 255, 255, 0.6);
+    --text-secondary: rgba(255, 255, 255, 0.8);
+    --text-primary: rgba(255, 255, 255, 0.9);
+
+    --bg-item-hover: rgba(255, 255, 255, 0.05);
+    --bg-btn-hover: rgba(255, 255, 255, 0.15);
+    --bg-icon-hover: rgba(255, 255, 255, 0.1);
+    --shadow-icon-hover: rgba(255, 255, 255, 0.1);
+
+    --glow-border-hover: rgba(117, 227, 255, 0.4);
+    --glow-shadow-hover: rgba(117, 227, 255, 0.2);
+
+    --edit-border: rgba(0, 255, 17, 0.4);
+    --edit-bg: rgba(8, 242, 105, 0.1);
+    --edit-shadow: rgba(30, 255, 0, 0.2);
+    --edit-text: #7de56d;
+
+    --delete-border: rgba(255, 80, 80, 0.4);
+    --delete-bg: rgba(255, 80, 80, 0.1);
+    --delete-shadow: rgba(255, 80, 80, 0.2);
+    --delete-text: #ffcfcf;
+
+    --success-green: #4cd137;
+    --error-red: #ff6b6b;
+
+    /* Popup Specific Variables */
+    --bg-logo: rgba(255, 255, 255, 0.1);
+    --text-gradient-main: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
+    --color-error-simple: red;
+    
+    --input-bg-shade: rgba(40, 40, 40, 0.1);
+    --input-shadow-inset: rgba(255, 255, 255, 0.05);
+    --text-placeholder: rgba(255, 255, 255, 0.4);
+    
+    --focus-border: rgba(117, 227, 255, 0.5);
+    --focus-shadow-inset: rgba(117, 227, 255, 0.1);
+    --pulse-glow-strong: rgba(117, 227, 255, 0.45);
+    
+    --btn-border-top: rgba(255, 255, 255, 0.4);
+    --btn-shadow-dark: rgba(0, 0, 0, 0.2);
+    --btn-shadow-light: rgba(255, 255, 255, 0.1);
+    
+    --btn-hover-grad-start: rgba(60, 60, 60, 0.35);
+    --btn-hover-grad-end: rgba(30, 30, 30, 0.25);
+    
+    --bg-disabled: rgba(40, 40, 40, 0.2);
 }
 
 body {

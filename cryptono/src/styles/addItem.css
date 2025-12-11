@@ -40,9 +40,9 @@
 }
 
 .gen-btn {
-    background: rgba(117, 227, 255, 0.1);
-    border: 1px solid rgba(117, 227, 255, 0.3);
-    color: rgba(117, 227, 255, 0.9);
+    background: var(--gen-button-bg);
+    border: 1px solid var(--gen-border);
+    color: var(--gen-color);
     padding: 2px 8px;
     border-radius: 6px;
     font-size: 0.75rem;
@@ -52,8 +52,8 @@
 }
 
 .gen-btn:hover {
-    background: rgba(117, 227, 255, 0.2);
-    box-shadow: 0 0 8px rgba(117, 227, 255, 0.2);
+    background: var(--gen-bg-hover);
+    box-shadow: 0 0 8px var(--gen-shadow);
 }
 
 /* Icon for showing password */
@@ -62,19 +62,19 @@
 }
 
 .cancel-btn:hover {
-    border-color: rgba(252, 58, 58, 0.4) !important;
+    border-color: var(--cancel-bg) !important;
     box-shadow: 
-        0 5px 15px rgba(248, 0, 0, 0.329),
-        inset 0 0 10px rgba(248, 0, 0, 0.1)
+        0 5px 15px var(--cancel-shadow-1),
+        inset 0 0 10px var(--cancel-shadow-2)
         !important;
     background: rgba(40, 0, 0, 0.3);
 }
 
 .save-btn:hover {
-    border-color: rgba(0, 255, 42, 0.4) !important;
+    border-color: var(--save-border) !important;
     box-shadow: 
-        0 5px 15px rgba(0, 255, 68, 0.363),
-        inset 0 0 10px rgba(0, 255, 68, 0.15)
+        0 5px 15px var(--save-shadow-1),
+        inset 0 0 10px var(--save-shadow-2)
         !important;
-    background: rgba(0, 40, 10, 0.3);
+    background: var(--save-bg);
 }
