@@ -301,27 +301,40 @@ export class StorageService {
     // Code section responsible for autofill functions
     // Scan DB for URL matching with the current URL(The one that the user is currently on)
     async findCredentialsForUrl(currentUrl: string, masterPassword: string): Promise<VaultItem | null> {
-        await this.ensureInit();
-        
-        // Get all elements which can be slow if there are many passwords stored, but there is no other way
-        const allItems = await this.getAllItems(masterPassword);
+    await this.ensureInit();
+    
+    // Pobieramy wszystkie elementy (szyfrowanie/deszyfrowanie to osobny temat, tutaj skupiamy się na logice)
+    const allItems = await this.getAllItems(masterPassword);
 
-        // Scan for matching URL - is saved URL in current host? Example: "google.com" matches "account.gooogle.com"
-        const foundItem = allItems.find(item => {
-            try {
-                // Normalize URL so we can compare them
-                const itemUrl = item.url.toLowerCase().replace(/https?:\/\//, '').split('/')[0];
-                const pageUrl = currentUrl.toLowerCase().replace(/https?:\/\//, '').split('/')[0];
-                
-                return pageUrl.includes(itemUrl) || itemUrl.includes(pageUrl);
-            } catch (e) {
-                console.log("Cryptono error" + e)
-                return false;
+    // Wyciągamy sam hostname z currentUrl (np. "login.example.com")
+    // Zakładamy, że currentUrl przekazany do funkcji to już czysty hostname (z contentScript), 
+    // ale dla pewności czyścimy go tak samo jak w itemUrl.
+    const cleanPageUrl = currentUrl.toLowerCase().replace(/https?:\/\//, '').split('/')[0];
+
+    const foundItem = allItems.find(item => {
+        try {
+            // Normalize DB url
+            const itemUrl = item.url.toLowerCase().replace(/https?:\/\//, '').split('/')[0];
+            
+            // Strick match
+            if (cleanPageUrl === itemUrl) {
+                return true;
             }
-        });
 
-        return foundItem || null;
-    }
+            // Handling subdomains for example: login.google.com
+            if (cleanPageUrl.endsWith('.' + itemUrl)) {
+                return true;
+            }
+
+            return false;
+        } catch (e) {
+            console.log("Cryptono error processing URL: " + e);
+            return false;
+        }
+    });
+
+    return foundItem || null;
+}
 }
 
 export const storageService = new StorageService();
