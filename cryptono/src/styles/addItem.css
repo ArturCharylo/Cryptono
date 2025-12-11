@@ -62,7 +62,7 @@
 }
 
 .cancel-btn:hover {
-    border-color: var(--cancel-bg) !important;
+    border-color: var(--cancel-border) !important;
     box-shadow: 
         0 5px 15px var(--cancel-shadow-1),
         inset 0 0 10px var(--cancel-shadow-2)
