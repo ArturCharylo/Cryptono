@@ -67,3 +67,48 @@ if (document.readyState === 'loading') {
 } else {
     setTimeout(autoFill, 500);
 }
+
+/**
+  Below This comment functions related to AutoSave start
+**/
+
+
+// form submit Listener - Allows to catch final data from the form before it's processed by the site and 'lost'
+document.addEventListener('submit', async (e) => {
+  const target = e.target as HTMLFormElement;
+  
+  // Search for password field
+  const passwordInput = target.querySelector('input[type="password"]') as HTMLInputElement;
+
+  // Ignore in case none found or empty
+  if (!passwordInput || !passwordInput.value) return;
+
+  // Simple logic for finding login input
+  // This probably should be more complex in future versions, although it will mostly work the way it is now
+  const inputs = Array.from(target.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"])'));
+  const passIndex = inputs.indexOf(passwordInput);
+  let usernameInput: HTMLInputElement | null = null;
+
+  if (passIndex > 0) {
+    usernameInput = inputs[passIndex - 1] as HTMLInputElement;
+  }
+
+  // If both login and password are found
+  if (usernameInput && usernameInput.value) {
+    const url = globalThis.location.hostname;
+    
+    // send data to be processed
+    try {
+      await chrome.runtime.sendMessage({
+        type: 'AUTOSAVE_REQUEST',
+        data: {
+          url: url,
+          username: usernameInput.value,
+          password: passwordInput.value
+        }
+      });
+    } catch (err) {
+      console.error('Cryptono AutoSave error:', err);
+    }
+  }
+}, true); // Use capture phase to catch event before other handlers potentially stop it
