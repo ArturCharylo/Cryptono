@@ -1,9 +1,10 @@
 import { storageService } from '../services/StorageService';
 import { STORAGE_KEYS } from '../constants/constants';
+import type { VaultItem } from '../types';
 
 export async function handleInputSave(
-    url: string,
-): Promise<object>{
+    data: { url: string; username: string; password: string }
+): Promise<object> {
      try {
     // Check if user is logged in by checking if master password is in session
     const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
@@ -14,16 +15,32 @@ export async function handleInputSave(
     }
 
     // Find matching data once the URL is matched
-    const item = await storageService.findCredentialsForUrl(url, masterPassword);
+    // This function currently only checks for the first matching data for the url given
+    const existingItem = await storageService.findCredentialsForUrl(data.url, masterPassword);
 
-    if (!item){
-        //This is for now empty, I think I'll implement AutoSave script here, idea might change later
+    if (existingItem && existingItem.username === data.username) {
+      console.log('Cryptono: Credentials already exist for this user/site.');
+      return { success: false, error: 'ALREADY_EXISTS' };
     }
 
+    // Creating a new item with the given data
+    const newItem: VaultItem = {
+        id: crypto.randomUUID(),
+        url: data.url,
+        username: data.username,
+        password: data.password,
+        createdAt: Date.now()
+    };
 
-  } catch (error) {
-    console.error('Autofill error:', error);
+    // Request to add newItem to the DB
+    await storageService.addItem(newItem, masterPassword);
+    console.log('Cryptono: AutoSaved new credentials!');
+    
+    return { success: true };
 
-  }
-  return {success: true}
+    } catch (error) {
+      console.error('Autofill error:', error);
+
+    }
+  return {}
 }
