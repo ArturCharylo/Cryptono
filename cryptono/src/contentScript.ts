@@ -1,3 +1,80 @@
+// This function is located here, because contentScripts doesn't allow imports here
+export function showAutoSaveToast(message: string = 'Dane zostały zapisane!') {
+    // 1. Check access
+    if (typeof document === 'undefined') {
+        console.error('Cannot show toast from Background Script directly. Use messaging.');
+        return;
+    }
+
+    // 2. Main container
+    const host = document.createElement('div');
+    host.id = 'cryptono-toast-host';
+    Object.assign(host.style, {
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        zIndex: '2147483647', // Max Z-index to ensure nothing covers our toast
+        pointerEvents: 'none' // Avoid blocking actions underneath
+    });
+
+    // 3. Shadow DOM
+    const shadow = host.attachShadow({ mode: 'open' });
+
+    // 4. HTML & CSS
+    const style = document.createElement('style');
+    style.textContent = `
+        .toast {
+            background-color: #10B981; /* Zielony sukces */
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: auto;
+        }
+        .toast.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .icon {
+            font-size: 18px;
+        }
+    `;
+
+    const toastDiv = document.createElement('div');
+    toastDiv.className = 'toast';
+    toastDiv.innerHTML = `
+        <span class="icon">🔒</span>
+        <span>${message}</span>
+    `;
+
+    // 5. Complete Toast
+    shadow.appendChild(style);
+    shadow.appendChild(toastDiv);
+    document.body.appendChild(host);
+
+    // 6. Animation after entering DOM
+    requestAnimationFrame(() => {
+        toastDiv.classList.add('visible');
+    });
+
+    // 7. Auto hide after 3s
+    setTimeout(() => {
+        toastDiv.classList.remove('visible');
+        setTimeout(() => {
+            host.remove();
+        }, 300);
+    }, 3000);
+}
+
 const autoFill = async () => {
   // Call background.ts for user data on current host
   const hostname = globalThis.location.hostname;
@@ -112,3 +189,9 @@ document.addEventListener('submit', async (e) => {
     }
   }
 }, true); // Use capture phase to catch event before other handlers potentially stop it
+
+chrome.runtime.onMessage.addListener((request) => {
+    if (request.type === 'SHOW_TOAST') {
+        showAutoSaveToast(request.message);
+    }
+});

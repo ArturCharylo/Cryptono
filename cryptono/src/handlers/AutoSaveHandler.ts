@@ -35,12 +35,16 @@ export async function handleInputSave(
     // Request to add newItem to the DB
     await storageService.addItem(newItem, masterPassword);
     console.log('Cryptono: AutoSaved new credentials!');
+    // Get active tab
+    const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+    if (tab?.id) {
+        chrome.tabs.sendMessage(tab.id, { type: 'SHOW_TOAST', message: 'Zapisano hasło!' });
+    }
     
     return { success: true };
 
     } catch (error) {
       console.error('Autofill error:', error);
-
+      return { success: false, error: 'UNKNOWN_ERROR' };
     }
-  return {}
 }
