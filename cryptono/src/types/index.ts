@@ -22,6 +22,7 @@ export interface VaultItem {
 export interface EncryptedVaultItem {
     id: string;
     url: string;      // Ciphertext
+    urlHash: string;  // Hashed URL for faster searching
     username: string; // Ciphertext
     password: string; // Ciphertext
     createdAt: number;

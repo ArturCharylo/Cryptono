@@ -1,4 +1,3 @@
-// src/services/StorageService.ts
 import type { VaultItem, EncryptedVaultItem, User } from '../types/index';
 import { cryptoService } from './CryptoService';
 import { DB_CONFIG, STORAGE_KEYS } from '../constants/constants';
@@ -9,6 +8,11 @@ const DB_VERSION = DB_CONFIG.DB_VERSION;
 
 export class StorageService {
     private db: IDBDatabase | null = null;
+
+    // Helper to normalize URL for consistent hashing
+    private normalizeUrl(url: string): string {
+        return url.toLowerCase().replace(/https?:\/\//, '').split('/')[0];
+    }
 
     // Open DB connection if not already opened
     async init(): Promise<void> {
@@ -25,7 +29,7 @@ export class StorageService {
                 resolve();
             };
 
-            //This code runs if DB version is new or DB doesn't exist
+            // This code runs if DB version is new or DB doesn't exist
             openRequest.onupgradeneeded = (event: IDBVersionChangeEvent) => {
                 const database = (event.target as IDBOpenDBRequest).result;
                 let objectStore: IDBObjectStore;
@@ -41,6 +45,11 @@ export class StorageService {
                 // Create index on 'username' for user lookup
                 if (!objectStore.indexNames.contains('username')) {
                     objectStore.createIndex('username', 'username', { unique: true });
+                }
+
+                // Create index on 'urlHash' for fast lookup without decryption (Blind Index)
+                if (!objectStore.indexNames.contains('urlHash')) {
+                    objectStore.createIndex('urlHash', 'urlHash', { unique: false });
                 }
             };
         });
@@ -143,6 +152,10 @@ export class StorageService {
     async addItem(item: VaultItem, masterPassword: string): Promise<void> {
         await this.ensureInit();
 
+        // Generate Blind Index Hash for URL
+        const cleanUrl = this.normalizeUrl(item.url);
+        const urlHash = await cryptoService.getBlindIndex(masterPassword, cleanUrl);
+
         const encryptedUrl = await cryptoService.encrypt(masterPassword, item.url);
         const encryptedUsername = await cryptoService.encrypt(masterPassword, item.username);
         const encryptedPassword = await cryptoService.encrypt(masterPassword, item.password);
@@ -151,6 +164,7 @@ export class StorageService {
         const encryptedItem: EncryptedVaultItem = {
             id: item.id,
             url: encryptedUrl,
+            urlHash: urlHash, // Store the hash for indexing
             username: encryptedUsername,
             password: encryptedPassword,
             createdAt: item.createdAt
@@ -182,7 +196,7 @@ export class StorageService {
             request.onsuccess = async () => {
                 const allResults = request.result || [];
                 // Fliter out user records (which contain validationToken)
-                const encryptedItems = allResults.filter((record: User) => !record.validationToken) as EncryptedVaultItem[];
+                const encryptedItems = allResults.filter((record: any) => !record.validationToken) as EncryptedVaultItem[];
                 
                 try {
                     // Decode each field of vault items
@@ -239,6 +253,10 @@ export class StorageService {
     async updateItem(item: VaultItem, masterPassword: string): Promise<void> {
         await this.ensureInit();
 
+        // Calculate new Blind Index Hash
+        const cleanUrl = this.normalizeUrl(item.url);
+        const urlHash = await cryptoService.getBlindIndex(masterPassword, cleanUrl);
+
         // Encrypt data again
         const encryptedUrl = await cryptoService.encrypt(masterPassword, item.url);
         const encryptedUsername = await cryptoService.encrypt(masterPassword, item.username);
@@ -247,6 +265,7 @@ export class StorageService {
         const encryptedItem: EncryptedVaultItem = {
             id: item.id, // keep the same ID
             url: encryptedUrl,
+            urlHash: urlHash, // Update hash
             username: encryptedUsername,
             password: encryptedPassword,
             createdAt: item.createdAt
@@ -301,60 +320,113 @@ export class StorageService {
     // Code section responsible for autofill functions
     // Scan DB for URL matching with the current URL(The one that the user is currently on)
     async findCredentialsForUrl(currentUrl: string, masterPassword: string): Promise<VaultItem | null> {
-    await this.ensureInit();
+        await this.ensureInit();
     
-    // Pobieramy wszystkie elementy (szyfrowanie/deszyfrowanie to osobny temat, tutaj skupiamy się na logice)
-    const allItems = await this.getAllItems(masterPassword);
+        const cleanPageUrl = this.normalizeUrl(currentUrl);
 
-    // Wyciągamy sam hostname z currentUrl (np. "login.example.com")
-    // Zakładamy, że currentUrl przekazany do funkcji to już czysty hostname (z contentScript), 
-    // ale dla pewności czyścimy go tak samo jak w itemUrl.
-    const cleanPageUrl = currentUrl.toLowerCase().replace(/https?:\/\//, '').split('/')[0];
-
-    const foundItem = allItems.find(item => {
-        try {
-            // Normalize DB url
-            const itemUrl = item.url.toLowerCase().replace(/https?:\/\//, '').split('/')[0];
-            
-            // Strick match
-            if (cleanPageUrl === itemUrl) {
-                return true;
+        // Prepare list of potential domains to check (exact match and root domain)
+        // e.g., if on login.example.com, check hashes for:
+        // 1. login.example.com
+        // 2. example.com
+        const domainsToCheck = [cleanPageUrl];
+        const parts = cleanPageUrl.split('.');
+        if (parts.length > 2) {
+            const rootDomain = parts.slice(-2).join('.');
+            if (rootDomain !== cleanPageUrl) {
+                domainsToCheck.push(rootDomain);
             }
-
-            // Handling subdomains for example: login.google.com
-            if (cleanPageUrl.endsWith('.' + itemUrl)) {
-                return true;
-            }
-
-            return false;
-        } catch (e) {
-            console.debug("Cryptono error processing URL: " + e);
-            return false;
         }
-    });
 
-    return foundItem || null;
+        return new Promise(async (resolve, reject) => {
+            if (!this.db) return reject(new Error("DB error"));
+            
+            const transaction = this.db.transaction([STORE_NAME], 'readonly');
+            const objectStore = transaction.objectStore(STORE_NAME);
+            const urlIndex = objectStore.index('urlHash');
+
+            // Iterate through potential domains to find a match in the Blind Index
+            for (const domain of domainsToCheck) {
+                const hashToCheck = await cryptoService.getBlindIndex(masterPassword, domain);
+                
+                // We wrap the IDBRequest in a Promise to await it inside the loop
+                const foundItem = await new Promise<EncryptedVaultItem | undefined>((res) => {
+                    const req = urlIndex.get(hashToCheck); // Get the first match
+                    req.onsuccess = () => res(req.result);
+                    req.onerror = () => res(undefined);
+                });
+
+                if (foundItem) {
+                    try {
+                        // Decrypt only the found item
+                        const decrypted: VaultItem = {
+                            id: foundItem.id,
+                            url: await cryptoService.decrypt(masterPassword, foundItem.url),
+                            username: await cryptoService.decrypt(masterPassword, foundItem.username),
+                            password: await cryptoService.decrypt(masterPassword, foundItem.password),
+                            createdAt: foundItem.createdAt
+                        };
+                        resolve(decrypted);
+                        return; // Match found, return immediately
+                    } catch (e) {
+                        console.debug("Cryptono error decrypting found item: " + e);
+                    }
+                }
+            }
+
+            resolve(null);
+        });
     }
 
     // Checking for duplicates
     async findItemByUrlAndUsername(url: string, username: string, masterPassword: string): Promise<VaultItem | null> {
         await this.ensureInit();
-        const allItems = await this.getAllItems(masterPassword);
         
-        const cleanCurrentUrl = url.toLowerCase().replace(/https?:\/\//, '').split('/')[0];
+        const cleanCurrentUrl = this.normalizeUrl(url);
+        const urlHash = await cryptoService.getBlindIndex(masterPassword, cleanCurrentUrl);
 
-        return allItems.find(item => {
-            try {
-                const itemUrl = item.url.toLowerCase().replace(/https?:\/\//, '').split('/')[0];
-                const isUrlMatch = cleanCurrentUrl === itemUrl || cleanCurrentUrl.endsWith('.' + itemUrl);
+        return new Promise((resolve, reject) => {
+            if (!this.db) return reject(new Error("DB error"));
+
+            const transaction = this.db.transaction([STORE_NAME], 'readonly');
+            const objectStore = transaction.objectStore(STORE_NAME);
+            const index = objectStore.index('urlHash');
+            
+            // Get all items matching the URL hash
+            const request = index.getAll(urlHash);
+
+            request.onsuccess = async () => {
+                const encryptedItems = request.result as EncryptedVaultItem[];
                 
-                // check url and username
-                return isUrlMatch && item.username === username;
-            } catch (e) {
-                console.error("Error checking for duplicates: " + e)
-                return false;
-            }
-        }) || null;
+                if (!encryptedItems || encryptedItems.length === 0) {
+                    resolve(null);
+                    return;
+                }
+
+                // Check usernames after filtering by URL hash
+                for (const item of encryptedItems) {
+                    try {
+                        const decryptedUsername = await cryptoService.decrypt(masterPassword, item.username);
+                        if (decryptedUsername === username) {
+                            // Exact match found
+                            resolve({
+                                id: item.id,
+                                url: await cryptoService.decrypt(masterPassword, item.url),
+                                username: decryptedUsername,
+                                password: await cryptoService.decrypt(masterPassword, item.password),
+                                createdAt: item.createdAt
+                            });
+                            return;
+                        }
+                    } catch (e) {
+                        console.error("Error checking for duplicates: " + e);
+                    }
+                }
+                
+                resolve(null);
+            };
+
+            request.onerror = () => resolve(null);
+        });
     }
 }
 
