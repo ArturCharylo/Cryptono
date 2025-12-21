@@ -16,9 +16,9 @@ export async function handleInputSave(
 
     // Find matching data once the URL is matched
     // This function currently only checks for the first matching data for the url given
-    const existingItem = await storageService.findCredentialsForUrl(data.url, masterPassword);
+    const existingItem = await storageService.findItemByUrlAndUsername(data.url, data.username, masterPassword);
 
-    if (existingItem && existingItem.username === data.username) {
+    if (existingItem) {
       console.log('Cryptono: Credentials already exist for this user/site.');
       return { success: false, error: 'ALREADY_EXISTS' };
     }

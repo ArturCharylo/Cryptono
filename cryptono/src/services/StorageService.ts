@@ -334,7 +334,28 @@ export class StorageService {
     });
 
     return foundItem || null;
-}
+    }
+
+    // Checking for duplicates
+    async findItemByUrlAndUsername(url: string, username: string, masterPassword: string): Promise<VaultItem | null> {
+        await this.ensureInit();
+        const allItems = await this.getAllItems(masterPassword);
+        
+        const cleanCurrentUrl = url.toLowerCase().replace(/https?:\/\//, '').split('/')[0];
+
+        return allItems.find(item => {
+            try {
+                const itemUrl = item.url.toLowerCase().replace(/https?:\/\//, '').split('/')[0];
+                const isUrlMatch = cleanCurrentUrl === itemUrl || cleanCurrentUrl.endsWith('.' + itemUrl);
+                
+                // check url and username
+                return isUrlMatch && item.username === username;
+            } catch (e) {
+                console.error("Error checking for duplicates: " + e)
+                return false;
+            }
+        }) || null;
+    }
 }
 
 export const storageService = new StorageService();
