@@ -1,5 +1,5 @@
 import { loginValidation } from '../validation/validate';
-import { storageService } from '../services/StorageService';
+import { userRepository } from '../repositories/UserRepository';
 import { clearField, setErrorMessage, setInputClassError, showToastMessage, ToastType } from '../utils/messages';
 
 export class Login {
@@ -150,7 +150,7 @@ export class Login {
 
         // Login
         try {
-            await storageService.Login(username, password);
+            await userRepository.Login(username, password);
         } catch (err) {
             // Log error to console, which allows usto avoid warnings for only throw new Error in catch
             console.error("Login attempt failed:", err);

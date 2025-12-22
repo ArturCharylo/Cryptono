@@ -1,5 +1,5 @@
 import { STORAGE_KEYS } from '../constants/constants';
-import { storageService } from '../services/StorageService';
+import { vaultRepository } from '../repositories/VaultRepository';
 
 export class Passwords {
     navigate: (path: string) => void;
@@ -86,7 +86,7 @@ export class Passwords {
                 return;
             }
 
-            const items = await storageService.getAllItems(masterPassword);
+            const items = await vaultRepository.getAllItems(masterPassword);
             
             // Clear innerHTML container
             listContainer.innerHTML = '';
@@ -197,7 +197,7 @@ export class Passwords {
                     if (confirm("Are you sure you want to delete this record?")) {
                         try {
                             // Wait for the item to be compleatly deleted from DB
-                            await storageService.deleteItem(item.id);
+                            await vaultRepository.deleteItem(item.id);
                             
                             // Delete element from DOM
                             tr.remove(); 
