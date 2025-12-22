@@ -1,5 +1,12 @@
+// Helper interface for custom fields
+interface CustomField {
+    name: string;
+    value: string;
+    type: string;
+}
+
 // This function is located here, because contentScripts doesn't allow imports here
-export function showAutoSaveToast(message: string = 'Dane zostały zapisane!') {
+export function showAutoSaveToast(message: string = 'Data saved!') {
     // 1. Check access
     if (typeof document === 'undefined') {
         console.error('Cannot show toast from Background Script directly. Use messaging.');
@@ -24,7 +31,7 @@ export function showAutoSaveToast(message: string = 'Dane zostały zapisane!') {
     const style = document.createElement('style');
     style.textContent = `
         .toast {
-            background-color: #10B981; /* Zielony sukces */
+            background-color: #10B981; /* Success Green */
             color: white;
             padding: 12px 24px;
             border-radius: 8px;
@@ -86,7 +93,8 @@ const autoFill = async () => {
     });
 
     if (response?.success && response?.data) {
-      fillForms(response.data.username, response.data.password);
+      // Pass retrieved fields to the filling function
+      fillForms(response.data.username, response.data.password, response.data.fields);
     } else {
       // Vault locked or no matching data found - ignore request
     }
@@ -96,7 +104,7 @@ const autoFill = async () => {
   }
 };
 
-const fillForms = (username: string, pass: string) => {
+const fillForms = (username: string, pass: string, customFields?: CustomField[]) => {
   // Find all password fields
   const passwordInputs = document.querySelectorAll('input[type="password"]');
 
@@ -105,7 +113,7 @@ const fillForms = (username: string, pass: string) => {
     
     // Autofill passwords
     input.value = pass;
-    // Call events for popular web frameworks to notice(example: React, Vue)
+    // Call events for popular web frameworks to notice (example: React, Vue)
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
 
@@ -135,6 +143,29 @@ const fillForms = (username: string, pass: string) => {
       usernameInput.style.backgroundColor = '#e8f0fe';
       input.style.backgroundColor = '#e8f0fe';
     }
+
+    // --- NEW: Fill Custom Fields ---
+    if (form && customFields && customFields.length > 0) {
+        customFields.forEach(field => {
+            // Search for input that matches the custom field name/id (case insensitive)
+            const selector = `
+                input[name="${field.name}" i], 
+                input[id="${field.name}" i],
+                textarea[name="${field.name}" i],
+                textarea[id="${field.name}" i]
+            `;
+            
+            const targetInput = form.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement;
+
+            // Only fill if found and currently empty to avoid overwriting user input
+            if (targetInput && !targetInput.value) {
+                targetInput.value = field.value;
+                targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                targetInput.style.backgroundColor = '#e8f0fe'; // Mark as autofilled
+            }
+        });
+    }
   }
 };
 
@@ -148,7 +179,6 @@ if (document.readyState === 'loading') {
 /**
   Below This comment functions related to AutoSave start
 **/
-
 
 // form submit Listener - Allows to catch final data from the form before it's processed by the site and 'lost'
 document.addEventListener('submit', async (e) => {
@@ -174,6 +204,34 @@ document.addEventListener('submit', async (e) => {
   if (usernameInput && usernameInput.value) {
     const url = globalThis.location.hostname;
     
+    // --- NEW: Collect Additional Fields for AutoSave ---
+    const collectedFields: CustomField[] = [];
+    
+    // Get all relevant inputs/textareas from the form
+    const allInputs = target.querySelectorAll('input, textarea, select');
+
+    allInputs.forEach((el) => {
+        const input = el as HTMLInputElement; // casting for simplicity
+        
+        // Skip:
+        // 1. Hidden inputs
+        // 2. Action buttons (submit, button, image)
+        // 3. Main credentials (we already have them)
+        // 4. Empty fields or fields without a name attribute
+        const isHidden = input.type === 'hidden' || input.style.display === 'none';
+        const isAction = input.type === 'submit' || input.type === 'button' || input.type === 'image';
+        const isMainCreds = input === passwordInput || input === usernameInput;
+        const hasData = input.name && input.value;
+
+        if (!isHidden && !isAction && !isMainCreds && hasData) {
+            collectedFields.push({
+                name: input.name, // We use the 'name' attribute as the key
+                value: input.value,
+                type: input.type || 'text'
+            });
+        }
+    });
+
     // send data to be processed
     try {
       await chrome.runtime.sendMessage({
@@ -181,7 +239,8 @@ document.addEventListener('submit', async (e) => {
         data: {
           url: url,
           username: usernameInput.value,
-          password: passwordInput.value
+          password: passwordInput.value,
+          fields: collectedFields // Include collected custom fields
         }
       });
     } catch (err) {
