@@ -65,6 +65,22 @@ export class EditItem {
                         <div class="input-error" id="re-pass-error"></div>
                     </div>
 
+                     <div class="input-group">
+                        <label for="note">Note</label>
+                        <textarea name="note" id="note" placeholder="Optional notes..." class="form-input"></textarea>
+                    </div>
+
+                    <div class="custom-fields-section">
+                        <div class="fields-header">
+                            <label>Custom Fields</label>
+                            <button type="button" id="add-field-btn" class="add-field-btn">+ Add Field</button>
+                        </div>
+                        <div id="fields-container">
+                            </div>
+                    </div>
+
+                    <div style="margin-top: 15px;"></div>
+
                     <button type="submit" class="login-btn save-btn">
                         <span class="btn-text">Save Changes</span>
                         <div class="btn-loader" style="display: none;">
@@ -89,31 +105,49 @@ export class EditItem {
         const cancelBtn = document.getElementById('cancel-btn');
         const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
 
-        // Handle displaying errors for better UX
-        const inputList = form.querySelectorAll('.form-input') as NodeListOf<HTMLInputElement>
+        // --- Dynamic Fields Logic (Shared with AddItem) ---
+        const addFieldBtn = document.getElementById('add-field-btn');
+        const fieldsContainer = document.getElementById('fields-container');
 
+        const addFieldRow = (nameValue = '', valueValue = '') => {
+            if (!fieldsContainer) return;
+            const row = document.createElement('div');
+            row.className = 'field-row';
+            row.innerHTML = `
+                <input type="text" placeholder="Name" class="form-input field-name-input" value="${nameValue}">
+                <input type="text" placeholder="Value" class="form-input field-value-input" value="${valueValue}">
+                <button type="button" class="remove-field-btn" title="Remove field">✕</button>
+            `;
+            row.querySelector('.remove-field-btn')?.addEventListener('click', () => row.remove());
+            fieldsContainer.appendChild(row);
+        };
+
+        if (addFieldBtn) {
+            addFieldBtn.addEventListener('click', () => addFieldRow());
+        }
+        // ------------------------------------------------
+
+        const inputList = form.querySelectorAll('input.form-input') as NodeListOf<HTMLInputElement>;
         for (const input of inputList) {
+            if (input.classList.contains('field-name-input') || input.classList.contains('field-value-input')) continue;
             input.addEventListener('input', () => {
                 setInputClassError(input, false);
                 const errorDiv = document.getElementById(`${input.id}-error`);
-                if (errorDiv) {
-                    clearField(errorDiv);
-                }
+                if (errorDiv) clearField(errorDiv);
             });
         }
 
-        // Form elements
         const genBtn = document.getElementById('gen-pass-btn');
         const passInput = document.getElementById('password') as HTMLInputElement;
         const rePassInput = document.getElementById('re-pass') as HTMLInputElement;
         const toggleVisBtn = document.getElementById('toggle-pass-visibility');
         const urlInput = document.getElementById('url') as HTMLInputElement;
         const usernameInput = document.getElementById('username') as HTMLInputElement;
+        const noteInput = document.getElementById('note') as HTMLTextAreaElement; // NEW
 
         // Load data for editing
         (async () => {
             try {
-                // Get ID and masterPass from session
                 const session = await chrome.storage.session.get([STORAGE_KEYS.MASTER, 'editingItemId']);
                 const id = session['editingItemId'] as string;
                 const masterPass = session[STORAGE_KEYS.MASTER] as string;
@@ -126,11 +160,19 @@ export class EditItem {
                 // Get decrypted element
                 const item = await vaultRepository.getItemDecrypted(id, masterPass);
                 
-                // Fill form with data from DB
+                // Fill form with data
                 urlInput.value = item.url;
                 usernameInput.value = item.username;
                 passInput.value = item.password;
                 rePassInput.value = item.password; 
+                if (item.note) noteInput.value = item.note; // Fill note
+
+                // Fill custom fields
+                if (item.fields && item.fields.length > 0) {
+                    item.fields.forEach(field => {
+                        addFieldRow(field.name, field.value);
+                    });
+                }
                 
             } catch (error) {
                 showToastMessage(((error as Error).message), ToastType.ERROR, 2500);
@@ -138,7 +180,6 @@ export class EditItem {
             }
         })();
 
-        // Handle Password generator
         if (genBtn) {
             genBtn.addEventListener('click', () => {
                 const newPassword = generateStrongPassword();
@@ -146,14 +187,12 @@ export class EditItem {
                 rePassInput.value = newPassword;
                 passInput.type = "text";
                 rePassInput.type = "text";
-                
                 const originalText = genBtn.textContent;
                 genBtn.textContent = "Generated!";
                 setTimeout(() => genBtn.textContent = originalText, 1000);
             });
         }
 
-        // Handle showing password
         if (toggleVisBtn) {
             toggleVisBtn.addEventListener('click', () => {
                 const type = passInput.type === "password" ? "text" : "password";
@@ -161,10 +200,9 @@ export class EditItem {
             });
         }
 
-        // Handle canceling
         if (cancelBtn) {
             cancelBtn.addEventListener('click', () => {
-                chrome.storage.session.remove('editingItemId'); // Clean ID
+                chrome.storage.session.remove('editingItemId');
                 this.navigate('/passwords');
             });
         }
@@ -173,18 +211,34 @@ export class EditItem {
         form?.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            // Error handling
             let isValid: boolean = true;
-
-            // Form fields
             const url = urlInput.value;
             const username = usernameInput.value;
             const password = passInput.value;
             const rePass = rePassInput.value;
+            const note = noteInput.value;
+
+            // Gather custom fields
+            const customFields: Array<{ name: string; value: string; type: string }> = [];
+            if (fieldsContainer) {
+                const rows = fieldsContainer.querySelectorAll('.field-row');
+                rows.forEach(row => {
+                    const nameInput = row.querySelector('.field-name-input') as HTMLInputElement;
+                    const valueInput = row.querySelector('.field-value-input') as HTMLInputElement;
+                    
+                    if (nameInput.value.trim() !== '' || valueInput.value.trim() !== '') {
+                        customFields.push({
+                            name: nameInput.value.trim(),
+                            value: valueInput.value.trim(),
+                            type: 'text'
+                        });
+                    }
+                });
+            }
 
              if (password !== rePass) {
-                const rePassInput = inputList.values().find((e) => e.id === "re-pass");
-                const errorDiv = document.getElementById(`${rePassInput?.id}-error`);
+                const rePassInput = document.getElementById("re-pass") as HTMLInputElement;
+                const errorDiv = document.getElementById(`re-pass-error`);
                 if (rePassInput && errorDiv) {
                     setInputClassError(rePassInput, true);
                     clearField(errorDiv);
@@ -193,23 +247,20 @@ export class EditItem {
                 return;
             }
 
-            if (!url || !username || !password || !rePass){
-            for (const input of inputList) {
-                    const errorDiv = document.getElementById(`${input.id}-error`);
-                    if (errorDiv) {
-                        clearField(errorDiv);
-                        if (!input.value) {
-                            setInputClassError(input, true);
-                            setErrorMessage(errorDiv, 'This field is required');
-                        } 
+            if (!url || !username || !password || !rePass) {
+                const mainInputs = ['url', 'username', 'password', 're-pass'];
+                mainInputs.forEach(id => {
+                    const input = document.getElementById(id) as HTMLInputElement;
+                    const errorDiv = document.getElementById(`${id}-error`);
+                    if (input && !input.value && errorDiv) {
+                         setInputClassError(input, true);
+                         setErrorMessage(errorDiv, 'This field is required');
                     }
-                }
+                });
                 isValid = false;
             }
 
-            if (!isValid) {
-                return;
-            }
+            if (!isValid) return;
 
             if (submitBtn) {
                 submitBtn.classList.add('loading');
@@ -228,16 +279,17 @@ export class EditItem {
                 }
 
                 const updatedItem: VaultItem = {
-                    id: id, // Keep old ID
+                    id: id,
                     url: url,
                     username: username,
                     password: password,
-                    createdAt: Date.now() // Updated date
+                    createdAt: Date.now(),
+                    note: note,          // Save note
+                    fields: customFields // Save custom fields
                 };
 
                 await vaultRepository.updateItem(updatedItem, masterPassword);
 
-                // Clear edit ID and return
                 await chrome.storage.session.remove('editingItemId');
                 this.navigate('/passwords');
 
@@ -245,7 +297,7 @@ export class EditItem {
                 if ((error as Error).message.includes("Session expired")) {
                     showToastMessage(((error as Error).message), ToastType.ERROR, 2500);
                     this.navigate('/login');
-                }else if (error instanceof Error) {
+                } else if (error instanceof Error) {
                     showToastMessage(error.message, ToastType.ERROR, error.message.length > 50 ? 6000 : 2500);
                 } else {
                     showToastMessage('An unexpected error occurred.', ToastType.ERROR, 2500);
