@@ -6,6 +6,11 @@ const DB_NAME = DB_CONFIG.DB_NAME;
 const STORE_NAME = DB_CONFIG.STORE_NAME;
 const DB_VERSION = DB_CONFIG.DB_VERSION; 
 
+// Type Guard to distinguish between User and VaultItem in raw DB results
+function isEncryptedVaultItem(record: unknown): record is EncryptedVaultItem {
+    return typeof record === 'object' && record !== null && !('validationToken' in record);
+}
+
 export class StorageService {
     private db: IDBDatabase | null = null;
 
@@ -195,8 +200,10 @@ export class StorageService {
 
             request.onsuccess = async () => {
                 const allResults = request.result || [];
-                // Fliter out user records (which contain validationToken)
-                const encryptedItems = allResults.filter((record: any) => !record.validationToken) as EncryptedVaultItem[];
+                
+                // Fliter out user records (which contain validationToken) using Type Guard
+                // FIX: Removed 'any' type usage by utilizing isEncryptedVaultItem type guard
+                const encryptedItems = allResults.filter(isEncryptedVaultItem);
                 
                 try {
                     // Decode each field of vault items
@@ -324,10 +331,7 @@ export class StorageService {
     
         const cleanPageUrl = this.normalizeUrl(currentUrl);
 
-        // Prepare list of potential domains to check (exact match and root domain)
-        // e.g., if on login.example.com, check hashes for:
-        // 1. login.example.com
-        // 2. example.com
+        // Prepare list of potential domains to check
         const domainsToCheck = [cleanPageUrl];
         const parts = cleanPageUrl.split('.');
         if (parts.length > 2) {
@@ -337,43 +341,61 @@ export class StorageService {
             }
         }
 
-        return new Promise(async (resolve, reject) => {
+        // FIX: Calculate hashes BEFORE creating the Promise (async executor fix)
+        // Also faster because we hash in parallel using Promise.all
+        const hashesToCheck = await Promise.all(
+            domainsToCheck.map(domain => cryptoService.getBlindIndex(masterPassword, domain))
+        );
+
+        return new Promise((resolve, reject) => {
             if (!this.db) return reject(new Error("DB error"));
             
             const transaction = this.db.transaction([STORE_NAME], 'readonly');
             const objectStore = transaction.objectStore(STORE_NAME);
             const urlIndex = objectStore.index('urlHash');
 
-            // Iterate through potential domains to find a match in the Blind Index
-            for (const domain of domainsToCheck) {
-                const hashToCheck = await cryptoService.getBlindIndex(masterPassword, domain);
-                
-                // We wrap the IDBRequest in a Promise to await it inside the loop
-                const foundItem = await new Promise<EncryptedVaultItem | undefined>((res) => {
-                    const req = urlIndex.get(hashToCheck); // Get the first match
-                    req.onsuccess = () => res(req.result);
-                    req.onerror = () => res(undefined);
-                });
-
-                if (foundItem) {
-                    try {
-                        // Decrypt only the found item
-                        const decrypted: VaultItem = {
-                            id: foundItem.id,
-                            url: await cryptoService.decrypt(masterPassword, foundItem.url),
-                            username: await cryptoService.decrypt(masterPassword, foundItem.username),
-                            password: await cryptoService.decrypt(masterPassword, foundItem.password),
-                            createdAt: foundItem.createdAt
-                        };
-                        resolve(decrypted);
-                        return; // Match found, return immediately
-                    } catch (e) {
-                        console.debug("Cryptono error decrypting found item: " + e);
-                    }
+            // Recursive function to check hashes sequentially within IDB transaction
+            // This avoids using 'await' inside the Promise constructor
+            const checkNextHash = (index: number) => {
+                if (index >= hashesToCheck.length) {
+                    resolve(null); // No match found after checking all hashes
+                    return;
                 }
-            }
 
-            resolve(null);
+                const hash = hashesToCheck[index];
+                const req = urlIndex.get(hash);
+
+                req.onsuccess = async () => {
+                    const foundItem = req.result as EncryptedVaultItem;
+                    if (foundItem) {
+                        try {
+                            // Decrypt found item
+                            const decrypted: VaultItem = {
+                                id: foundItem.id,
+                                url: await cryptoService.decrypt(masterPassword, foundItem.url),
+                                username: await cryptoService.decrypt(masterPassword, foundItem.username),
+                                password: await cryptoService.decrypt(masterPassword, foundItem.password),
+                                createdAt: foundItem.createdAt
+                            };
+                            resolve(decrypted);
+                        } catch (e) {
+                            console.debug("Cryptono error decrypting found item, trying next...", e);
+                            checkNextHash(index + 1);
+                        }
+                    } else {
+                        // Hash not found, try next domain candidate
+                        checkNextHash(index + 1);
+                    }
+                };
+
+                req.onerror = () => {
+                    // In case of error, continue to next
+                    checkNextHash(index + 1);
+                };
+            };
+
+            // Start checking from the first hash
+            checkNextHash(0);
         });
     }
 
@@ -382,6 +404,7 @@ export class StorageService {
         await this.ensureInit();
         
         const cleanCurrentUrl = this.normalizeUrl(url);
+        // Hash calculation moved out for consistency
         const urlHash = await cryptoService.getBlindIndex(masterPassword, cleanCurrentUrl);
 
         return new Promise((resolve, reject) => {
