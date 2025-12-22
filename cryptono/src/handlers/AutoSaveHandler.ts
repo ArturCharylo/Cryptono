@@ -3,7 +3,7 @@ import { STORAGE_KEYS } from '../constants/constants';
 import type { VaultItem } from '../types';
 
 export async function handleInputSave(
-    data: { url: string; username: string; password: string }
+    data: { url: string; username: string; password: string; fields?: Array<{name: string; value: string; type: string}> }
 ): Promise<object> {
      try {
     // Check if user is logged in by checking if master password is in session
@@ -29,6 +29,7 @@ export async function handleInputSave(
         url: data.url,
         username: data.username,
         password: data.password,
+        fields: data.fields,
         createdAt: Date.now()
     };
 

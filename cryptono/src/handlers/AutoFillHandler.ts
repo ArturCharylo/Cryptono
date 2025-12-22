@@ -27,7 +27,8 @@ export async function handleAutofill(
         success: true, 
         data: { 
           username: item.username, 
-          password: item.password 
+          password: item.password,
+          fields: item.fields,
         } 
       });
     } else {
