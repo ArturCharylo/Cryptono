@@ -110,41 +110,18 @@ const fillForms = (username: string, pass: string, customFields?: CustomField[])
 
   for (const passwordInput of passwordInputs) {
     const input = passwordInput as HTMLInputElement;
+    const form = input.closest('form');
     
-    // Autofill passwords
+    // 1. Autofill password (always first)
     input.value = pass;
     // Call events for popular web frameworks to notice (example: React, Vue)
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.style.backgroundColor = '#e8f0fe';
 
-    // Find login field closely to password
-    const form = input.closest('form');
-    let usernameInput: HTMLInputElement | null = null;
-
-    if (form) {
-      // If form found search for inputs inside
-      const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"])'));
-      const passIndex = inputs.indexOf(input);
-      // Take input that appears before password
-      if (passIndex > 0) {
-        usernameInput = inputs[passIndex - 1] as HTMLInputElement;
-      }
-    } else {
-      // Fallback: Look for previous input in document
-    }
-
-    // If input field found and is empty
-    if (usernameInput && !usernameInput.value) {
-      usernameInput.value = username;
-      usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
-      usernameInput.dispatchEvent(new Event('change', { bubbles: true }));
-      
-      // Mark that Cryptono autofilled the input with updated background color
-      usernameInput.style.backgroundColor = '#e8f0fe';
-      input.style.backgroundColor = '#e8f0fe';
-    }
-
-    // --- NEW: Fill Custom Fields ---
+    // 2. PRIORITY CHANGE: Fill Custom Fields BEFORE generic Username heuristic.
+    // This solves the issue where "email" field is overwritten by "username" value
+    // because it was detected positionally. Specific named matches should win.
     if (form && customFields && customFields.length > 0) {
         customFields.forEach(field => {
             // Search for input that matches the custom field name/id (case insensitive)
@@ -165,6 +142,31 @@ const fillForms = (username: string, pass: string, customFields?: CustomField[])
                 targetInput.style.backgroundColor = '#e8f0fe'; // Mark as autofilled
             }
         });
+    }
+
+    // 3. Find login field closely to password (Heuristic fallback)
+    let usernameInput: HTMLInputElement | null = null;
+
+    if (form) {
+      // If form found search for inputs inside
+      const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"])'));
+      const passIndex = inputs.indexOf(input);
+      // Take input that appears before password
+      if (passIndex > 0) {
+        usernameInput = inputs[passIndex - 1] as HTMLInputElement;
+      }
+    } else {
+      // Fallback logic could go here
+    }
+
+    // 4. Fill Username ONLY if it wasn't already filled by Custom Fields logic
+    if (usernameInput && !usernameInput.value) {
+      usernameInput.value = username;
+      usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
+      usernameInput.dispatchEvent(new Event('change', { bubbles: true }));
+      
+      // Mark that Cryptono autofilled the input with updated background color
+      usernameInput.style.backgroundColor = '#e8f0fe';
     }
   }
 };
@@ -227,7 +229,6 @@ function scoreUsernameInput(input: HTMLInputElement): number {
     if (type === 'email') score += 40;
 
     // Medium priority signals
-    // FIXED: Removed accidental 'RFname' typo
     if (name.includes('user') || name.includes('login') || name.includes('mail')) score += 20;
     
     // It must be visible
