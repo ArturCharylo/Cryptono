@@ -1,20 +1,17 @@
-import { databaseContext } from './DatabaseContext';
+import { vaultRepository } from '../repositories/VaultRepository';
 import { cryptoService } from './CryptoService';
 import { normalizeUrl } from '../utils/urlHelper';
-import { DB_CONFIG } from '../constants/constants';
-import type { VaultItem, EncryptedVaultItem } from '../types/index';
-
-const STORE_NAME = DB_CONFIG.STORE_NAME;
+import type { VaultItem } from '../types/index';
 
 export class AutofillService {
-    // Code section responsible for autofill functions
-    // Scan DB for URL matching with the current URL(The one that the user is currently on)
+    
+    // Scan DB for URL matching with the current URL (The one that the user is currently on)
     async findCredentialsForUrl(currentUrl: string, masterPassword: string): Promise<VaultItem | null> {
-        await databaseContext.ensureInit();
-
+        // 1. Normalize the URL (e.g., https://login.google.com/ -> login.google.com)
         const cleanPageUrl = normalizeUrl(currentUrl);
 
-        // Prepare list of potential domains to check
+        // 2. Generate a list of potential domains to check.
+        // E.g., for "login.google.com" we check: "login.google.com" AND "google.com"
         const domainsToCheck = [cleanPageUrl];
         const parts = cleanPageUrl.split('.');
         if (parts.length > 2) {
@@ -24,63 +21,76 @@ export class AutofillService {
             }
         }
 
-        // FIX: Calculate hashes BEFORE creating the Promise (async executor fix)
-        // Also faster because we hash in parallel using Promise.all
+        // 3. Calculate blind index hashes for these domains (in parallel for performance)
         const hashesToCheck = await Promise.all(
             domainsToCheck.map(domain => cryptoService.getBlindIndex(masterPassword, domain))
         );
 
-        return new Promise((resolve, reject) => {
-            const db = databaseContext.db;
-            if (!db) return reject(new Error("DB error"));
+        // 4. Check each hash in the repository
+        for (const hash of hashesToCheck) {
+            // Fetch ENCRYPTED items matching the hash (very fast indexed lookup)
+            // This requires 'getItemsByUrlHash' method in VaultRepository
+            const encryptedItems = await vaultRepository.getItemsByUrlHash(hash);
 
-            const transaction = db.transaction([STORE_NAME], 'readonly');
-            const objectStore = transaction.objectStore(STORE_NAME);
-            const urlIndex = objectStore.index('urlHash');
+            if (encryptedItems && encryptedItems.length > 0) {
+                // Potential matches found. Now try to decrypt them.
+                // Usually this will be just 1 or 2 items, not the whole database.
+                
+                for (const encryptedItem of encryptedItems) {
+                    try {
+                        const decryptedUrl = await cryptoService.decrypt(masterPassword, encryptedItem.url);
+                        
+                        // Additional check to ensure exact domain match (avoids hash collisions)
+                        const normalizedDecryptedUrl = normalizeUrl(decryptedUrl);
+                        const isMatch = cleanPageUrl === normalizedDecryptedUrl || cleanPageUrl.endsWith('.' + normalizedDecryptedUrl);
 
-            // Recursive function to check hashes sequentially within IDB transaction
-            // This avoids using 'await' inside the Promise constructor
-            const checkNextHash = (index: number) => {
-                if (index >= hashesToCheck.length) {
-                    resolve(null); // No match found after checking all hashes
-                    return;
-                }
-
-                const hash = hashesToCheck[index];
-                const req = urlIndex.get(hash);
-
-                req.onsuccess = async () => {
-                    const foundItem = req.result as EncryptedVaultItem;
-                    if (foundItem) {
-                        try {
-                            // Decrypt found item
-                            const decrypted: VaultItem = {
-                                id: foundItem.id,
-                                url: await cryptoService.decrypt(masterPassword, foundItem.url),
-                                username: await cryptoService.decrypt(masterPassword, foundItem.username),
-                                password: await cryptoService.decrypt(masterPassword, foundItem.password),
-                                createdAt: foundItem.createdAt
+                        if (isMatch) {
+                            return {
+                                id: encryptedItem.id,
+                                url: decryptedUrl,
+                                username: await cryptoService.decrypt(masterPassword, encryptedItem.username),
+                                password: await cryptoService.decrypt(masterPassword, encryptedItem.password),
+                                createdAt: encryptedItem.createdAt,
+                                // Add fields/note decryption here if your VaultItem type supports them
                             };
-                            resolve(decrypted);
-                        } catch (e) {
-                            console.debug("Cryptono error decrypting found item, trying next...", e);
-                            checkNextHash(index + 1);
                         }
-                    } else {
-                        // Hash not found, try next domain candidate
-                        checkNextHash(index + 1);
+                    } catch (e) {
+                        console.warn("AutofillService: Failed to decrypt potential candidate", e);
+                        // Ignore decryption errors and continue searching
                     }
-                };
+                }
+            }
+        }
 
-                req.onerror = () => {
-                    // In case of error, continue to next
-                    checkNextHash(index + 1);
-                };
-            };
+        return null;
+    }
 
-            // Start checking from the first hash
-            checkNextHash(0);
-        });
+    // Optimized method for checking duplicates when adding new items
+    async findItemByUrlAndUsername(url: string, username: string, masterPassword: string): Promise<VaultItem | null> {
+        const cleanUrl = normalizeUrl(url);
+        const urlHash = await cryptoService.getBlindIndex(masterPassword, cleanUrl);
+        
+        // Fetch candidates by hash first
+        const encryptedItems = await vaultRepository.getItemsByUrlHash(urlHash);
+
+        for (const item of encryptedItems) {
+            try {
+                const decryptedUsername = await cryptoService.decrypt(masterPassword, item.username);
+                if (decryptedUsername === username) {
+                    // We found a match for both URL (via hash) and Username. Decrypt the rest.
+                    return {
+                        id: item.id,
+                        url: await cryptoService.decrypt(masterPassword, item.url),
+                        username: decryptedUsername,
+                        password: await cryptoService.decrypt(masterPassword, item.password),
+                        createdAt: item.createdAt
+                    };
+                }
+            } catch (e) {
+                console.warn("AutofillService: Error checking for duplicates", e);
+            }
+        }
+        return null;
     }
 }
 

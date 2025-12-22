@@ -233,6 +233,31 @@ export class VaultRepository {
             request.onerror = () => resolve(null);
         });
     }
+
+    async getItemsByUrlHash(urlHash: string): Promise<EncryptedVaultItem[]> {
+        await databaseContext.ensureInit();
+        const db = databaseContext.db;
+
+        return new Promise((resolve, reject) => {
+            if (!db) return reject(new Error("Database not initialized"));
+
+            const transaction = db.transaction([DB_CONFIG.STORE_NAME], 'readonly');
+            const objectStore = transaction.objectStore(DB_CONFIG.STORE_NAME);
+            const index = objectStore.index('urlHash');
+            
+            // Get all items matching the URL hash
+            const request = index.getAll(urlHash);
+
+            request.onsuccess = () => {
+                const results = request.result as EncryptedVaultItem[];
+                // Fliter out to avoid getting Cryptono user records
+                const items = results.filter(item => !('validationToken' in item));
+                resolve(items);
+            };
+
+            request.onerror = () => resolve([]); // Return enpty array on error
+        });
+    }
 }
 
 export const vaultRepository = new VaultRepository();
