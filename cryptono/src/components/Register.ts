@@ -1,5 +1,5 @@
 import { emailRegex, registerValidation } from '../validation/validate';
-import { storageService } from '../services/StorageService';
+import { userRepository } from '../repositories/UserRepository';
 import { clearField, setErrorMessage, setInputClassError, showToastMessage, ToastType } from '../utils/messages';
 
 export class Register {
@@ -193,6 +193,6 @@ export class Register {
         }
 
         // Create user in DB after all validation is complete
-        await storageService.createUser(username, email, password, repeatPass);
+        await userRepository.createUser(username, email, password, repeatPass);
     }
 }

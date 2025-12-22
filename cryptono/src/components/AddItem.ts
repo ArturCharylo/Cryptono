@@ -1,4 +1,4 @@
-import { storageService } from "../services/StorageService";
+import { vaultRepository } from "../repositories/VaultRepository";
 import { STORAGE_KEYS } from "../constants/constants";
 import type { VaultItem } from "../types";
 import { addValidation } from "../validation/validate";
@@ -211,7 +211,7 @@ export class AddItem {
                 };
 
                 // Encrypt and store new item after successful validation
-                await storageService.addItem(newItem, masterPassword);
+                await vaultRepository.addItem(newItem, masterPassword);
 
                 this.navigate('/passwords');
 

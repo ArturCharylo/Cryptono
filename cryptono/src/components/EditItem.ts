@@ -1,4 +1,4 @@
-import { storageService } from "../services/StorageService";
+import { vaultRepository } from "../repositories/VaultRepository";
 import { STORAGE_KEYS } from "../constants/constants";
 import type { VaultItem } from "../types";
 import { addValidation } from "../validation/validate";
@@ -124,7 +124,7 @@ export class EditItem {
                 }
 
                 // Get decrypted element
-                const item = await storageService.getItemDecrypted(id, masterPass);
+                const item = await vaultRepository.getItemDecrypted(id, masterPass);
                 
                 // Fill form with data from DB
                 urlInput.value = item.url;
@@ -235,7 +235,7 @@ export class EditItem {
                     createdAt: Date.now() // Updated date
                 };
 
-                await storageService.updateItem(updatedItem, masterPassword);
+                await vaultRepository.updateItem(updatedItem, masterPassword);
 
                 // Clear edit ID and return
                 await chrome.storage.session.remove('editingItemId');

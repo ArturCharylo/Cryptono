@@ -1,4 +1,4 @@
-import { storageService } from '../services/StorageService';
+import { vaultRepository } from '../repositories/VaultRepository';
 import { STORAGE_KEYS } from '../constants/constants';
 import type { VaultItem } from '../types';
 
@@ -16,7 +16,7 @@ export async function handleInputSave(
 
     // Find matching data once the URL is matched
     // This function currently only checks for the first matching data for the url given
-    const existingItem = await storageService.findItemByUrlAndUsername(data.url, data.username, masterPassword);
+    const existingItem = await vaultRepository.findItemByUrlAndUsername(data.url, data.username, masterPassword);
 
     if (existingItem) {
       console.log('Cryptono: Credentials already exist for this user/site.');
@@ -33,7 +33,7 @@ export async function handleInputSave(
     };
 
     // Request to add newItem to the DB
-    await storageService.addItem(newItem, masterPassword);
+    await vaultRepository.addItem(newItem, masterPassword);
     console.log('Cryptono: AutoSaved new credentials!');
     // Get active tab
     const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
