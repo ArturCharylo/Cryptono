@@ -45,13 +45,26 @@ export class AutofillService {
                         const isMatch = cleanPageUrl === normalizedDecryptedUrl || cleanPageUrl.endsWith('.' + normalizedDecryptedUrl);
 
                         if (isMatch) {
+                            // Decrypt optional fields
+                            let decryptedFields = undefined;
+                            if (encryptedItem.fields) {
+                                const jsonString = await cryptoService.decrypt(masterPassword, encryptedItem.fields);
+                                decryptedFields = JSON.parse(jsonString);
+                            }
+
+                            let decryptedNote = undefined;
+                            if (encryptedItem.note) {
+                                decryptedNote = await cryptoService.decrypt(masterPassword, encryptedItem.note);
+                            }
+
                             return {
                                 id: encryptedItem.id,
                                 url: decryptedUrl,
                                 username: await cryptoService.decrypt(masterPassword, encryptedItem.username),
                                 password: await cryptoService.decrypt(masterPassword, encryptedItem.password),
                                 createdAt: encryptedItem.createdAt,
-                                // Add fields/note decryption here if your VaultItem type supports them
+                                fields: decryptedFields,
+                                note: decryptedNote
                             };
                         }
                     } catch (e) {
@@ -78,12 +91,26 @@ export class AutofillService {
                 const decryptedUsername = await cryptoService.decrypt(masterPassword, item.username);
                 if (decryptedUsername === username) {
                     // We found a match for both URL (via hash) and Username. Decrypt the rest.
+                    
+                    let decryptedFields = undefined;
+                    if (item.fields) {
+                        const jsonString = await cryptoService.decrypt(masterPassword, item.fields);
+                        decryptedFields = JSON.parse(jsonString);
+                    }
+
+                    let decryptedNote = undefined;
+                    if (item.note) {
+                        decryptedNote = await cryptoService.decrypt(masterPassword, item.note);
+                    }
+
                     return {
                         id: item.id,
                         url: await cryptoService.decrypt(masterPassword, item.url),
                         username: decryptedUsername,
                         password: await cryptoService.decrypt(masterPassword, item.password),
-                        createdAt: item.createdAt
+                        createdAt: item.createdAt,
+                        fields: decryptedFields,
+                        note: decryptedNote
                     };
                 }
             } catch (e) {
