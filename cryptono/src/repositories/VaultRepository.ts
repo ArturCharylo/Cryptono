@@ -24,6 +24,15 @@ export class VaultRepository {
         const encryptedUsername = await cryptoService.encrypt(masterPassword, item.username);
         const encryptedPassword = await cryptoService.encrypt(masterPassword, item.password);
 
+        // Encrypt optional fields (fields array as JSON string, note as string)
+        const encryptedFields = item.fields 
+            ? await cryptoService.encrypt(masterPassword, JSON.stringify(item.fields)) 
+            : undefined;
+        
+        const encryptedNote = item.note 
+            ? await cryptoService.encrypt(masterPassword, item.note) 
+            : undefined;
+
         // Here we encrypt all neccessary fields of VaultItem before passing to indexedDB
         const encryptedItem: EncryptedVaultItem = {
             id: item.id,
@@ -31,7 +40,9 @@ export class VaultRepository {
             urlHash: urlHash, // Store the hash for indexing
             username: encryptedUsername,
             password: encryptedPassword,
-            createdAt: item.createdAt
+            createdAt: item.createdAt,
+            fields: encryptedFields, // Store encrypted JSON string
+            note: encryptedNote      // Store encrypted note
         };
 
         return new Promise((resolve, reject) => {
@@ -61,20 +72,35 @@ export class VaultRepository {
             request.onsuccess = async () => {
                 const allResults = request.result || [];
 
-                // Fliter out user records (which contain validationToken) using Type Guard
+                // Filter out user records (which contain validationToken) using Type Guard
                 const encryptedItems = allResults.filter(isEncryptedVaultItem);
 
                 try {
                     // Decode each field of vault items
                     const results = await Promise.allSettled(
-                        encryptedItems.map(async (item: EncryptedVaultItem) => {
+                        // FIX: Explicitly enforce return type Promise<VaultItem> to satisfy strict type checks
+                        encryptedItems.map(async (item: EncryptedVaultItem): Promise<VaultItem> => {
                             try {
+                                // Decrypt optional fields if they exist
+                                let decryptedFields: VaultItem['fields'] = undefined;
+                                if (item.fields) {
+                                    const jsonString = await cryptoService.decrypt(masterPassword, item.fields);
+                                    decryptedFields = JSON.parse(jsonString);
+                                }
+
+                                let decryptedNote: string | undefined = undefined;
+                                if (item.note) {
+                                    decryptedNote = await cryptoService.decrypt(masterPassword, item.note);
+                                }
+
                                 return {
                                     id: item.id,
                                     url: await cryptoService.decrypt(masterPassword, item.url),
                                     username: await cryptoService.decrypt(masterPassword, item.username),
                                     password: await cryptoService.decrypt(masterPassword, item.password),
-                                    createdAt: item.createdAt
+                                    createdAt: item.createdAt,
+                                    fields: decryptedFields,
+                                    note: decryptedNote
                                 };
                             } catch (error) {
                                 console.warn(`Skipping corrupted item ${item.id}`, error);
@@ -93,7 +119,7 @@ export class VaultRepository {
                     reject(new Error("Failed to decrypt the vault"));
                 }
             };
-            request.onerror = () => reject(request.error || new Error('Falied Decryption'));
+            request.onerror = () => reject(request.error || new Error('Failed Decryption'));
         });
     }
 
@@ -125,13 +151,24 @@ export class VaultRepository {
         const encryptedUsername = await cryptoService.encrypt(masterPassword, item.username);
         const encryptedPassword = await cryptoService.encrypt(masterPassword, item.password);
 
+        // Encrypt optional fields again
+        const encryptedFields = item.fields 
+            ? await cryptoService.encrypt(masterPassword, JSON.stringify(item.fields)) 
+            : undefined;
+        
+        const encryptedNote = item.note 
+            ? await cryptoService.encrypt(masterPassword, item.note) 
+            : undefined;
+
         const encryptedItem: EncryptedVaultItem = {
             id: item.id, // keep the same ID
             url: encryptedUrl,
             urlHash: urlHash, // Update hash
             username: encryptedUsername,
             password: encryptedPassword,
-            createdAt: item.createdAt
+            createdAt: item.createdAt,
+            fields: encryptedFields, // Update encrypted fields
+            note: encryptedNote      // Update encrypted note
         };
 
         return new Promise((resolve, reject) => {
@@ -165,12 +202,26 @@ export class VaultRepository {
                      return;
                  }
                  try {
+                     // Decrypt optional fields for single item
+                     let decryptedFields: VaultItem['fields'] = undefined;
+                     if (encryptedItem.fields) {
+                         const jsonString = await cryptoService.decrypt(masterPassword, encryptedItem.fields);
+                         decryptedFields = JSON.parse(jsonString);
+                     }
+
+                     let decryptedNote: string | undefined = undefined;
+                     if (encryptedItem.note) {
+                         decryptedNote = await cryptoService.decrypt(masterPassword, encryptedItem.note);
+                     }
+
                      const item: VaultItem = {
                          id: encryptedItem.id,
                          url: await cryptoService.decrypt(masterPassword, encryptedItem.url),
                          username: await cryptoService.decrypt(masterPassword, encryptedItem.username),
                          password: await cryptoService.decrypt(masterPassword, encryptedItem.password),
-                         createdAt: encryptedItem.createdAt
+                         createdAt: encryptedItem.createdAt,
+                         fields: decryptedFields,
+                         note: decryptedNote
                      };
                      resolve(item);
                  } catch (e) {
@@ -212,13 +263,26 @@ export class VaultRepository {
                     try {
                         const decryptedUsername = await cryptoService.decrypt(masterPassword, item.username);
                         if (decryptedUsername === username) {
-                            // Exact match found
+                            // Match found, decrypt the rest including new fields
+                            let decryptedFields: VaultItem['fields'] = undefined;
+                            if (item.fields) {
+                                const jsonString = await cryptoService.decrypt(masterPassword, item.fields);
+                                decryptedFields = JSON.parse(jsonString);
+                            }
+
+                            let decryptedNote: string | undefined = undefined;
+                            if (item.note) {
+                                decryptedNote = await cryptoService.decrypt(masterPassword, item.note);
+                            }
+
                             resolve({
                                 id: item.id,
                                 url: await cryptoService.decrypt(masterPassword, item.url),
                                 username: decryptedUsername,
                                 password: await cryptoService.decrypt(masterPassword, item.password),
-                                createdAt: item.createdAt
+                                createdAt: item.createdAt,
+                                fields: decryptedFields,
+                                note: decryptedNote
                             });
                             return;
                         }
@@ -250,12 +314,12 @@ export class VaultRepository {
 
             request.onsuccess = () => {
                 const results = request.result as EncryptedVaultItem[];
-                // Fliter out to avoid getting Cryptono user records
+                // Filter out to avoid getting Cryptono user records
                 const items = results.filter(item => !('validationToken' in item));
                 resolve(items);
             };
 
-            request.onerror = () => resolve([]); // Return enpty array on error
+            request.onerror = () => resolve([]); // Return empty array on error
         });
     }
 }
