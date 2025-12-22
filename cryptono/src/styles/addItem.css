@@ -18,7 +18,7 @@
 
 .form-input-with-icon {
     width: 100%;
-    padding-right: 40px; /* This space ensures that text doesn't overlap the icon */
+    padding-right: 40px;
 }
 
 .eye-btn {
@@ -26,11 +26,9 @@
     right: 12px;
     top: 50%;
     transform: translateY(-50%);
-    
     background: none;
     border: none;
     cursor: pointer;
-    
     opacity: 0.6;
     padding: 0;
     font-size: 1.1rem;
@@ -56,11 +54,11 @@
     box-shadow: 0 0 8px var(--gen-shadow);
 }
 
-/* Icon for showing password */
 .eye-btn:hover {
     opacity: 1 !important;
 }
 
+/* --- Buttons --- */
 .cancel-btn:hover {
     border-color: var(--cancel-border) !important;
     box-shadow: 
@@ -77,4 +75,100 @@
         inset 0 0 10px var(--save-shadow-2)
         !important;
     background: var(--save-bg);
+}
+
+/* --- NEW STYLES FOR DYNAMIC FIELDS --- */
+
+/* Note Textarea */
+textarea.form-input {
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
+}
+
+/* Custom Fields Container */
+.custom-fields-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.fields-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.fields-header label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Add Field Button (Small) */
+.add-field-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border-light);
+    color: var(--text-secondary);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.add-field-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+}
+
+/* Single Field Row */
+.field-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Inputs in the row */
+.field-row input {
+    /* Mniejsze paddingi dla pól dynamicznych, żeby się zmieściły */
+    padding: 8px 12px; 
+    font-size: 0.85rem;
+}
+
+.field-name-input {
+    flex: 1; /* 1/3 szerokości */
+    min-width: 0;
+}
+
+.field-value-input {
+    flex: 2; /* 2/3 szerokości */
+    min-width: 0;
+}
+
+/* Remove Button (X) */
+.remove-field-btn {
+    background: none;
+    border: none;
+    color: var(--color-error-simple);
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.remove-field-btn:hover {
+    opacity: 1;
 }
