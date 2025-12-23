@@ -1,4 +1,4 @@
-import { storageService } from '../services/StorageService';
+import { autofillService } from '../services/AutofillService';
 import { STORAGE_KEYS } from '../constants/constants';
 import type { AutoFillResponse } from '../types';
 
@@ -20,14 +20,15 @@ export async function handleAutofill(
     }
 
     // Find matching data once the URL is matched
-    const item = await storageService.findCredentialsForUrl(url, masterPassword);
+    const item = await autofillService.findCredentialsForUrl(url, masterPassword);
 
     if (item) {
       sendResponse({ 
         success: true, 
         data: { 
           username: item.username, 
-          password: item.password 
+          password: item.password,
+          fields: item.fields,
         } 
       });
     } else {

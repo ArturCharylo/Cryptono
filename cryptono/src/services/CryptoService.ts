@@ -73,6 +73,20 @@ export class CryptoService {
             throw new Error("Wrong password or corrupted data");
         }
     }
+
+    // Create 'blind index' for URL, this allows us to search for items faster without revealing the url
+    async getBlindIndex(masterPassword: string, data: string): Promise<string> {
+        const encoder = new TextEncoder();
+        const dataBuffer = encoder.encode(masterPassword + data); // Proste połączenie klucza i danych
+        
+        // Hash with SHA-256
+        const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', dataBuffer);
+        
+        // Convert to hex string
+        return Array.from(new Uint8Array(hashBuffer))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+    }
 }
 
 

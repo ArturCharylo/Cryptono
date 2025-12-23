@@ -1,7 +1,7 @@
 export const DB_CONFIG = {
     DB_NAME: 'CryptonoDB',
     STORE_NAME: 'vault',
-    DB_VERSION: 2,
+    DB_VERSION: 3,
 } as const
 
 export const STORAGE_KEYS = {

@@ -1,4 +1,4 @@
-import { storageService } from "../services/StorageService";
+import { vaultRepository } from "../repositories/VaultRepository";
 import { STORAGE_KEYS } from "../constants/constants";
 import type { VaultItem } from "../types";
 import { addValidation } from "../validation/validate";
@@ -65,6 +65,22 @@ export class AddItem {
                         <div class="input-error" id="re-pass-error"></div>
                     </div>
 
+                    <div class="input-group">
+                        <label for="note">Note</label>
+                        <textarea name="note" id="note" placeholder="Optional notes..." class="form-input"></textarea>
+                    </div>
+
+                    <div class="custom-fields-section">
+                        <div class="fields-header">
+                            <label>Custom Fields</label>
+                            <button type="button" id="add-field-btn" class="add-field-btn">+ Add Field</button>
+                        </div>
+                        <div id="fields-container">
+                            </div>
+                    </div>
+
+                    <div style="margin-top: 15px;"></div>
+
                     <button type="submit" class="login-btn save-btn">
                         <span class="btn-text">Save Item</span>
                         <div class="btn-loader" style="display: none;">
@@ -88,10 +104,43 @@ export class AddItem {
         const form = document.getElementById('item-form') as HTMLFormElement;
         const cancelBtn = document.getElementById('cancel-btn');
         const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
-        // Handle displaying errors for better UX
-        const inputList = form.querySelectorAll('.form-input') as NodeListOf<HTMLInputElement>
+        
+        // --- Dynamic Fields Logic ---
+        const addFieldBtn = document.getElementById('add-field-btn');
+        const fieldsContainer = document.getElementById('fields-container');
+
+        const addFieldRow = (nameValue = '', valueValue = '') => {
+            if (!fieldsContainer) return;
+
+            const row = document.createElement('div');
+            row.className = 'field-row';
+            row.innerHTML = `
+                <input type="text" placeholder="Name (e.g. PIN)" class="form-input field-name-input" value="${nameValue}">
+                <input type="text" placeholder="Value" class="form-input field-value-input" value="${valueValue}">
+                <button type="button" class="remove-field-btn" title="Remove field">✕</button>
+            `;
+
+            // Remove handler
+            const removeBtn = row.querySelector('.remove-field-btn');
+            removeBtn?.addEventListener('click', () => {
+                row.remove();
+            });
+
+            fieldsContainer.appendChild(row);
+        };
+
+        if (addFieldBtn) {
+            addFieldBtn.addEventListener('click', () => {
+                addFieldRow();
+            });
+        }
+        // ---------------------------
+
+        const inputList = form.querySelectorAll('input.form-input') as NodeListOf<HTMLInputElement>;
         
         for (const input of inputList) {
+            if (input.classList.contains('field-name-input') || input.classList.contains('field-value-input')) continue; // Skip validation listeners for dynamic fields for now
+
             input.addEventListener('input', () => {
                 setInputClassError(input, false);
                 const errorDiv = document.getElementById(`${input.id}-error`);
@@ -107,35 +156,28 @@ export class AddItem {
         const rePassInput = document.getElementById('re-pass') as HTMLInputElement;
         const toggleVisBtn = document.getElementById('toggle-pass-visibility');
 
-        // -- Password Generator Button -- //
         if (genBtn) {
             genBtn.addEventListener('click', () => {
                 const newPassword = generateStrongPassword();
-                
                 passInput.value = newPassword;
                 rePassInput.value = newPassword;
-
-                // Show generated password to the user
                 passInput.type = "text";
                 rePassInput.type = "text";
                 
-                // Animate button for feedback to the user
                 const originalText = genBtn.textContent;
                 genBtn.textContent = "Generated!";
                 setTimeout(() => genBtn.textContent = originalText, 1000);
             });
         }
 
-        // --- Show password logic in manual input ---
         if (toggleVisBtn) {
             toggleVisBtn.addEventListener('click', () => {
                 const type = passInput.type === "password" ? "text" : "password";
                 passInput.type = type;
-                rePassInput.type = type; // keep both password and repeat password fileds synchronised
+                rePassInput.type = type;
             });
         }
 
-        // Handle return to vault page(passwords)
         if (cancelBtn) {
             cancelBtn.addEventListener('click', () => {
                 this.navigate('/passwords');
@@ -146,37 +188,51 @@ export class AddItem {
         form?.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            // Error handling
             let isValid: boolean = true;
             const formData = new FormData(form);
 
-            // Form fields
             const url = formData.get('url') as string;
             const username = formData.get('username') as string;
             const password = formData.get('password') as string;
             const rePass = formData.get('re-pass') as string;
+            const note = formData.get('note') as string; // Capture note
 
-            if (!url || !username || !password || !rePass){
-            for (const input of inputList) {
-                    const errorDiv = document.getElementById(`${input.id}-error`);
-                    if (errorDiv) {
-                        clearField(errorDiv);
-                        if (!input.value) {
-                            setInputClassError(input, true);
-                            setErrorMessage(errorDiv, 'This field is required');
-                        } 
+            // Gather custom fields
+            const customFields: Array<{ name: string; value: string; type: string }> = [];
+            if (fieldsContainer) {
+                const rows = fieldsContainer.querySelectorAll('.field-row');
+                rows.forEach(row => {
+                    const nameInput = row.querySelector('.field-name-input') as HTMLInputElement;
+                    const valueInput = row.querySelector('.field-value-input') as HTMLInputElement;
+                    
+                    if (nameInput.value.trim() !== '' || valueInput.value.trim() !== '') {
+                        customFields.push({
+                            name: nameInput.value.trim(),
+                            value: valueInput.value.trim(),
+                            type: 'text'
+                        });
                     }
-                }
+                });
+            }
+
+            // Basic Validation
+            if (!url || !username || !password || !rePass) {
+                // Check main inputs (ignoring dynamic ones for global required check)
+                const mainInputs = ['url', 'username', 'password', 're-pass'];
+                mainInputs.forEach(id => {
+                    const input = document.getElementById(id) as HTMLInputElement;
+                    const errorDiv = document.getElementById(`${id}-error`);
+                    if (input && !input.value && errorDiv) {
+                         setInputClassError(input, true);
+                         setErrorMessage(errorDiv, 'This field is required');
+                    }
+                });
                 isValid = false;
             }
 
-            if (!isValid) {
-                return;
-            }
-
-            if (password !== rePass) {
-                const rePassInput = inputList.values().find((e) => e.id === "re-pass");
-                const errorDiv = document.getElementById(`${rePassInput?.id}-error`);
+            if (isValid && password !== rePass) {
+                const rePassInput = document.getElementById("re-pass") as HTMLInputElement;
+                const errorDiv = document.getElementById(`re-pass-error`);
                 if (rePassInput && errorDiv) {
                     setInputClassError(rePassInput, true);
                     clearField(errorDiv);
@@ -185,7 +241,8 @@ export class AddItem {
                 return;
             }
 
-            // UI Loading state
+            if (!isValid) return;
+
             if (submitBtn) {
                 submitBtn.classList.add('loading');
                 submitBtn.disabled = true;
@@ -194,7 +251,6 @@ export class AddItem {
             try {
                 await this.validateItem(url, username, password);
 
-                // Get master key from session data
                 const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
                 const masterPassword = sessionData[STORAGE_KEYS.MASTER] as string;
 
@@ -207,16 +263,15 @@ export class AddItem {
                     url: url,
                     username: username,
                     password: password,
-                    createdAt: Date.now()
+                    createdAt: Date.now(),
+                    note: note,          // Save note
+                    fields: customFields // Save custom fields
                 };
 
-                // Encrypt and store new item after successful validation
-                await storageService.addItem(newItem, masterPassword);
-
+                await vaultRepository.addItem(newItem, masterPassword);
                 this.navigate('/passwords');
 
             } catch (error) {            
-                // handle expired sessions
                 if ((error as Error).message.includes("Session expired")) {
                     showToastMessage(((error as Error).message), ToastType.ERROR, 2500);
                     this.navigate('/login');
@@ -227,7 +282,6 @@ export class AddItem {
                     showToastMessage('An unexpected error occurred.', ToastType.ERROR, 2500);
                 }
             } finally {
-                // Reset loading state
                 if (submitBtn) {
                     submitBtn.classList.remove('loading');
                     submitBtn.disabled = false;
@@ -236,11 +290,8 @@ export class AddItem {
         });
     }
 
-    // Validation function - Runs through regex rules and throws errors if any found
     async validateItem(url: string, username: string, password: string): Promise<void> {
         const validations = addValidation(url, username, password);
-
-        // Using .test for regex validation as it is faster and safer
         const allValid = validations.every(v => {
             const regexObj = v.regex instanceof RegExp ? v.regex : new RegExp(v.regex);
             return regexObj.test(v.value);
@@ -253,8 +304,6 @@ export class AddItem {
                     return !regexObj.test(v.value);
                 })
                 .map(v => v.message);
-            
-            // This error will be caught in afterRender function
             throw new Error(errors.join('\n'));
         }
     }
