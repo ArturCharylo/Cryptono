@@ -1,5 +1,6 @@
 import { STORAGE_KEYS } from '../constants/constants';
 import { vaultRepository } from '../repositories/VaultRepository';
+import { showToastMessage, ToastType } from '../utils/messages';
 
 export class Passwords {
     navigate: (path: string) => void;
@@ -31,7 +32,7 @@ export class Passwords {
                                     <th>Site</th>
                                     <th>Username</th>
                                     <th>Password</th>
-                                    <th>Action</th>
+                                    <th id="action-header">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="password-list">
@@ -193,30 +194,57 @@ export class Passwords {
                 const btnDelete = document.createElement('button');
                 btnDelete.className = 'action-btn delete-btn';
                 btnDelete.textContent = 'Delete';
-                btnDelete.onclick = async () => {
-                    if (confirm("Are you sure you want to delete this record?")) {
-                        try {
-                            // Wait for the item to be compleatly deleted from DB
-                            await vaultRepository.deleteItem(item.id);
-                            
-                            // Delete element from DOM
-                            tr.remove(); 
-
-                            // Show 'no password' if table is empty after deletion 
-                            if (listContainer.children.length === 0) {
-                                const emptyTr = document.createElement('tr');
-                                emptyTr.innerHTML = '<td colspan="4" class="state-message empty">No passwords saved yet.</td>';
-                                listContainer.appendChild(emptyTr);
-                            }
-                        } catch (error) {
-                            console.error(error);
-                            alert("Failed to delete item.");
-                        }
-                    }
+                btnDelete.onclick = () => {
+                    // Hide Edit/Delete, show Confirm/Cancel
+                    btnEdit.style.display = 'none';
+                    btnDelete.style.display = 'none';
+                    btnConfirm.style.display = 'inline-block';
+                    btnCancel.style.display = 'inline-block';
                 };
+
+                // Confirm button (hidden by default)
+                const btnConfirm = document.createElement('button');
+                btnConfirm.className = 'action-btn edit-btn';
+                btnConfirm.textContent = 'Confirm';
+                btnConfirm.style.display = 'none';
+
+                btnConfirm.onclick = async () => {
+                    try {
+                        // Wait for the item to be compleatly deleted from DB
+                        await vaultRepository.deleteItem(item.id);
+                        
+                        // Delete element from DOM
+                        tr.remove(); 
+                        // Show 'no password' if table is empty after deletion 
+                        if (listContainer.children.length === 0) {
+                            const emptyTr = document.createElement('tr');
+                            emptyTr.innerHTML = '<td colspan="4" class="state-message empty">No passwords saved yet.</td>';
+                            listContainer.appendChild(emptyTr);
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        showToastMessage('Failed to delete item.', ToastType.ERROR, 2500);
+                    }
+                }
+
+                // Cancel button (hidden by default)
+                const btnCancel = document.createElement('button');
+                btnCancel.className = 'action-btn delete-btn';
+                btnCancel.textContent = 'Cancel';
+                btnCancel.style.display = 'none';
+
+                btnCancel.onclick = () => {
+                    // Show Edit/Delete, hide Confirm/Cancel
+                    btnEdit.style.display = 'inline-block';
+                    btnDelete.style.display = 'inline-block';
+                    btnConfirm.style.display = 'none';
+                    btnCancel.style.display = 'none';
+                }
 
                 tdAction.appendChild(btnEdit);
                 tdAction.appendChild(btnDelete);
+                tdAction.appendChild(btnConfirm);
+                tdAction.appendChild(btnCancel);
                 tr.appendChild(tdAction);
 
                 // Add to fragment for better memory handling
