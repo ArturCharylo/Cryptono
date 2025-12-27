@@ -215,6 +215,7 @@ export class Passwords {
                         
                         // Delete element from DOM
                         tr.remove(); 
+                        showToastMessage('Item deleted successfully.', ToastType.SUCCESS, 2000);
                         // Show 'no password' if table is empty after deletion 
                         if (listContainer.children.length === 0) {
                             const emptyTr = document.createElement('tr');
