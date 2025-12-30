@@ -114,17 +114,36 @@ export class AddItem {
 
             const row = document.createElement('div');
             row.className = 'field-row';
-            row.innerHTML = `
-                <input type="text" placeholder="Name (e.g. PIN)" class="form-input field-name-input" value="${nameValue}">
-                <input type="text" placeholder="Value" class="form-input field-value-input" value="${valueValue}">
-                <button type="button" class="remove-field-btn" title="Remove field">✕</button>
-            `;
 
-            // Remove handler
-            const removeBtn = row.querySelector('.remove-field-btn');
-            removeBtn?.addEventListener('click', () => {
+            // Create Name Input
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.placeholder = 'Name (e.g. PIN)';
+            nameInput.className = 'form-input field-name-input';
+            nameInput.value = nameValue; // Secure assignment
+
+            // Create Value Input
+            const valueInput = document.createElement('input');
+            valueInput.type = 'text';
+            valueInput.placeholder = 'Value';
+            valueInput.className = 'form-input field-value-input';
+            valueInput.value = valueValue; // Secure assignment
+
+            // Create Remove Button
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-field-btn';
+            removeBtn.title = 'Remove field';
+            removeBtn.textContent = '✕';
+            
+            removeBtn.addEventListener('click', () => {
                 row.remove();
             });
+
+            // Append elements
+            row.appendChild(nameInput);
+            row.appendChild(valueInput);
+            row.appendChild(removeBtn);
 
             fieldsContainer.appendChild(row);
         };
