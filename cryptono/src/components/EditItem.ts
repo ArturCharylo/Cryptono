@@ -105,20 +105,49 @@ export class EditItem {
         const cancelBtn = document.getElementById('cancel-btn');
         const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
 
-        // --- Dynamic Fields Logic (Shared with AddItem) ---
+        // --- Dynamic Fields Logic ---
         const addFieldBtn = document.getElementById('add-field-btn');
         const fieldsContainer = document.getElementById('fields-container');
 
         const addFieldRow = (nameValue = '', valueValue = '') => {
             if (!fieldsContainer) return;
+
+            // Create row container
             const row = document.createElement('div');
             row.className = 'field-row';
-            row.innerHTML = `
-                <input type="text" placeholder="Name" class="form-input field-name-input" value="${nameValue}">
-                <input type="text" placeholder="Value" class="form-input field-value-input" value="${valueValue}">
-                <button type="button" class="remove-field-btn" title="Remove field">✕</button>
-            `;
-            row.querySelector('.remove-field-btn')?.addEventListener('click', () => row.remove());
+
+            // Create Name input
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.placeholder = 'Name';
+            nameInput.className = 'form-input field-name-input';
+            nameInput.value = nameValue; // Safe assignment via property
+
+            // Create Value input
+            const valueInput = document.createElement('input');
+            valueInput.type = 'text';
+            valueInput.placeholder = 'Value';
+            valueInput.className = 'form-input field-value-input';
+            valueInput.value = valueValue; // Safe assignment via property
+
+            // Create Remove button
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-field-btn';
+            removeBtn.title = 'Remove field';
+            removeBtn.textContent = '✕';
+
+            // Attach event listener to remove button
+            removeBtn.addEventListener('click', () => {
+                row.remove();
+            });
+
+            // Append elements to row
+            row.appendChild(nameInput);
+            row.appendChild(valueInput);
+            row.appendChild(removeBtn);
+
+            // Append row to container
             fieldsContainer.appendChild(row);
         };
 
@@ -143,7 +172,7 @@ export class EditItem {
         const toggleVisBtn = document.getElementById('toggle-pass-visibility');
         const urlInput = document.getElementById('url') as HTMLInputElement;
         const usernameInput = document.getElementById('username') as HTMLInputElement;
-        const noteInput = document.getElementById('note') as HTMLTextAreaElement; // NEW
+        const noteInput = document.getElementById('note') as HTMLTextAreaElement;
 
         // Load data for editing
         (async () => {
@@ -253,8 +282,8 @@ export class EditItem {
                     const input = document.getElementById(id) as HTMLInputElement;
                     const errorDiv = document.getElementById(`${id}-error`);
                     if (input && !input.value && errorDiv) {
-                         setInputClassError(input, true);
-                         setErrorMessage(errorDiv, 'This field is required');
+                          setInputClassError(input, true);
+                          setErrorMessage(errorDiv, 'This field is required');
                     }
                 });
                 isValid = false;
