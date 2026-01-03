@@ -83,92 +83,133 @@ export function showAutoSaveToast(message: string = 'Data saved!') {
 }
 
 const autoFill = async () => {
-  // Call background.ts for user data on current host
-  const hostname = globalThis.location.hostname;
-  
-  try {
-    const response = await chrome.runtime.sendMessage({ 
-      type: 'AUTOFILL_REQUEST', 
-      url: hostname 
-    });
+    // Call background.ts for user data on current host
+    const hostname = globalThis.location.hostname;
 
-    if (response?.success && response?.data) {
-      // Pass retrieved fields to the filling function
-      fillForms(response.data.username, response.data.password, response.data.fields);
-    } else {
-      // Vault locked or no matching data found - ignore request
+    try {
+        const response = await chrome.runtime.sendMessage({
+            type: 'AUTOFILL_REQUEST',
+            url: hostname
+        });
+
+        if (response?.success && response?.data) {
+            // Pass retrieved fields to the filling function
+            fillForms(response.data.username, response.data.password, response.data.fields);
+        } else {
+            // Vault locked or no matching data found - ignore request
+        }
+    } catch (err) {
+        // Communication error
+        console.debug('Cryptono connection issue:', err);
     }
-  } catch (err) {
-    // Communication error
-    console.debug('Cryptono connection issue:', err);
-  }
 };
 
 const fillForms = (username: string, pass: string, customFields?: CustomField[]) => {
-  // Find all password fields
-  const passwordInputs = document.querySelectorAll('input[type="password"]');
+    // Find all password fields
+    const passwordInputs = document.querySelectorAll('input[type="password"]');
 
-  for (const passwordInput of passwordInputs) {
-    const input = passwordInput as HTMLInputElement;
-    const form = input.closest('form');
-    
-    // 1. Autofill password (always first)
-    input.value = pass;
-    // Call events for popular web frameworks to notice (example: React, Vue)
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    input.style.backgroundColor = '#e8f0fe';
+    for (const passwordInput of passwordInputs) {
+        const input = passwordInput as HTMLInputElement;
+        const form = input.closest('form');
 
-    // 2. PRIORITY CHANGE: Fill Custom Fields BEFORE generic Username heuristic.
-    // This solves the issue where "email" field is overwritten by "username" value
-    // because it was detected positionally. Specific named matches should win.
-    if (form && customFields && customFields.length > 0) {
-        customFields.forEach(field => {
-            // Search for input that matches the custom field name/id (case insensitive)
-            const selector = `
-                input[name="${field.name}" i], 
-                input[id="${field.name}" i],
-                textarea[name="${field.name}" i],
-                textarea[id="${field.name}" i]
-            `;
-            
-            const targetInput = form.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement;
+        // 1. Autofill password (always first)
+        input.value = pass;
+        // Call events for popular web frameworks to notice (example: React, Vue)
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.style.backgroundColor = '#e8f0fe';
 
-            // Only fill if found and currently empty to avoid overwriting user input
-            if (targetInput && !targetInput.value) {
-                targetInput.value = field.value;
-                targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-                targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-                targetInput.style.backgroundColor = '#e8f0fe'; // Mark as autofilled
+        // Prepare scope for inputs (form or body if form is missing)
+        const inputsScope = form ? form : document.body;
+        const allScopeInputs = Array.from(inputsScope.querySelectorAll('input, textarea, select')) as HTMLInputElement[];
+
+        // 2. PRIORITY CHANGE: Fill Custom Fields BEFORE generic Username heuristic.
+        // We now use fuzzy matching logic to handle complex IDs (like "1firstName") matching simple keys ("First Name")
+        if (customFields && customFields.length > 0) {
+            customFields.forEach(field => {
+                const cleanFieldName = field.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+                // Find the best matching input in the scope
+                const targetInput = allScopeInputs.find(candidate => {
+                    // Skip password and hidden fields
+                    if (candidate.type === 'password' || candidate.type === 'hidden') return false;
+
+                    // A. Check attributes (Name/ID) - Fuzzy containment check
+                    const candidateName = (candidate.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const candidateId = (candidate.id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    
+                    if (candidateName && candidateName.includes(cleanFieldName)) return true;
+                    if (candidateId && candidateId.includes(cleanFieldName)) return true;
+
+                    // B. Check visible Label (Crucial for sites like RoboForm test)
+                    // We reuse the getFieldLabel helper defined below
+                    const label = getFieldLabel(candidate).toLowerCase().replace(/[^a-z0-9]/g, '');
+                    if (label && label.includes(cleanFieldName)) return true;
+
+                    return false;
+                });
+
+                // Only fill if found and currently empty to avoid overwriting user input
+                if (targetInput && !targetInput.value) {
+                    targetInput.value = field.value;
+                    targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    targetInput.style.backgroundColor = '#e8f0fe'; // Mark as autofilled
+                }
+            });
+        }
+
+        // 3. Find login field closely to password (Heuristic fallback)
+        let usernameInput: HTMLInputElement | null = null;
+        let bestScore = -1;
+
+        // Filter potential username inputs
+        const potentialUsernames = allScopeInputs.filter(i => {
+            // Must not be the password itself, hidden, submit, or already filled (e.g. by custom fields)
+            const isAlreadyFilled = i.style.backgroundColor === 'rgb(232, 240, 254)' || (i.value && i.value.length > 0);
+            return i !== input &&
+                   i.type !== 'hidden' && 
+                   i.type !== 'submit' && 
+                   i.type !== 'button' &&
+                   !isAlreadyFilled &&
+                   // Ensure it appears before password in the DOM structure
+                   (i.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING);
+        });
+
+        // Use the scoring heuristic defined below to find the best candidate
+        potentialUsernames.forEach(candidate => {
+            const score = scoreUsernameInput(candidate);
+            if (score > bestScore) {
+                bestScore = score;
+                usernameInput = candidate;
             }
         });
-    }
 
-    // 3. Find login field closely to password (Heuristic fallback)
-    let usernameInput: HTMLInputElement | null = null;
+        // Fallback logic: If heuristics failed, take the input strictly before the password
+        if (!usernameInput) {
+             const passIndex = allScopeInputs.indexOf(input);
+             if (passIndex > 0) {
+                 const prevInput = allScopeInputs[passIndex - 1];
+                 // Basic validation for the previous input
+                 if (prevInput.type !== 'hidden' && prevInput.type !== 'submit') {
+                     usernameInput = prevInput;
+                 }
+             }
+        }
 
-    if (form) {
-      // If form found search for inputs inside
-      const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"])'));
-      const passIndex = inputs.indexOf(input);
-      // Take input that appears before password
-      if (passIndex > 0) {
-        usernameInput = inputs[passIndex - 1] as HTMLInputElement;
-      }
-    } else {
-      // Fallback logic could go here
+        // 4. Fill Username ONLY if it wasn't already filled by Custom Fields logic
+        if (usernameInput) {
+            const uInput = usernameInput as HTMLInputElement;
+            if (!uInput.value) {
+                uInput.value = username;
+                uInput.dispatchEvent(new Event('input', { bubbles: true }));
+                uInput.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                // Mark that Cryptono autofilled the input with updated background color
+                uInput.style.backgroundColor = '#e8f0fe';
+            }
+        }
     }
-
-    // 4. Fill Username ONLY if it wasn't already filled by Custom Fields logic
-    if (usernameInput && !usernameInput.value) {
-      usernameInput.value = username;
-      usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
-      usernameInput.dispatchEvent(new Event('change', { bubbles: true }));
-      
-      // Mark that Cryptono autofilled the input with updated background color
-      usernameInput.style.backgroundColor = '#e8f0fe';
-    }
-  }
 };
 
 // Run autofill on site load
@@ -179,7 +220,7 @@ if (document.readyState === 'loading') {
 }
 
 /**
-  Below This comment functions related to AutoSave start
+ Below This comment functions related to AutoSave start
 **/
 
 // --- HEURISTICS HELPERS ---
