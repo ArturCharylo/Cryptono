@@ -55,7 +55,7 @@ Cryptono takes security seriously. Here is how your data is handled:
 ## 📦 Installation & Development
 
 Since this project uses Vite, you need to build it before loading it into Chrome.
- > If You're a contributor and want to test Autofill/AutoSave use this site ([Test Form](https://fill.dev/form/login-simple))
+ > If You're a contributor and want to test Autofill/AutoSave use this site ([Test Form](https://fill.dev/form/login-simple)) or for more fields ([Test Autofill](https://www.roboform.com/filling-test-all-fields))
 
 ### Prerequisites
 
