@@ -11,14 +11,14 @@ export class AutofillService {
         const cleanPageUrl = normalizeUrl(currentUrl);
 
         // 2. Generate a list of potential domains to check.
-        // E.g., for "login.google.com" we check: "login.google.com" AND "google.com"
         const domainsToCheck = [cleanPageUrl];
-        const parts = cleanPageUrl.split('.');
-        if (parts.length > 2) {
-            const rootDomain = parts.slice(-2).join('.');
-            if (rootDomain !== cleanPageUrl) {
-                domainsToCheck.push(rootDomain);
-            }
+        
+        // Improved root domain extraction logic
+        const rootDomain = this.extractRootDomain(cleanPageUrl);
+        
+        // Add root domain if it's different from the full URL
+        if (rootDomain && rootDomain !== cleanPageUrl) {
+            domainsToCheck.push(rootDomain);
         }
 
         // 3. Calculate blind index hashes for these domains (in parallel for performance)
@@ -29,12 +29,9 @@ export class AutofillService {
         // 4. Check each hash in the repository
         for (const hash of hashesToCheck) {
             // Fetch ENCRYPTED items matching the hash (very fast indexed lookup)
-            // This requires 'getItemsByUrlHash' method in VaultRepository
             const encryptedItems = await vaultRepository.getItemsByUrlHash(hash);
 
             if (encryptedItems && encryptedItems.length > 0) {
-                // Potential matches found. Now try to decrypt them.
-                // Usually this will be just 1 or 2 items, not the whole database.
                 
                 for (const encryptedItem of encryptedItems) {
                     try {
@@ -42,6 +39,7 @@ export class AutofillService {
                         
                         // Additional check to ensure exact domain match (avoids hash collisions)
                         const normalizedDecryptedUrl = normalizeUrl(decryptedUrl);
+                        // Check if it matches either the full URL or ends with the decrypted URL (subdomain match)
                         const isMatch = cleanPageUrl === normalizedDecryptedUrl || cleanPageUrl.endsWith('.' + normalizedDecryptedUrl);
 
                         if (isMatch) {
@@ -78,6 +76,34 @@ export class AutofillService {
         return null;
     }
 
+    /**
+     * Helper to extract root domain handling common multipart TLDs (like co.uk, gov.pl)
+     */
+    private extractRootDomain(hostname: string): string {
+        const parts = hostname.split('.');
+        
+        // If simply domain.com or localhost
+        if (parts.length <= 2) return hostname;
+
+        const lastPart = parts[parts.length - 1];
+        const secondLastPart = parts[parts.length - 2];
+
+        // List of common Second Level Domains (SLDs) that act as effective TLDs
+        // Extend this list as needed for your target user base
+        const commonSLDs = [
+            'co', 'com', 'org', 'net', 'edu', 'gov', 'mil', 'ac', // Generic
+            'waw', 'lodz', 'krakow', 'wroc', 'poznan', // Polish regional (optional)
+        ];
+
+        // Logic: If the TLD is 2 chars (e.g. uk, pl, au) AND the SLD is common (e.g. co, com, gov)
+        // Then we should take the last 3 parts (amazon.co.uk) instead of 2 (co.uk)
+        if (lastPart.length === 2 && commonSLDs.includes(secondLastPart)) {
+            return parts.slice(-3).join('.');
+        }
+
+        return parts.slice(-2).join('.');
+    }
+
     // Optimized method for checking duplicates when adding new items
     async findItemByUrlAndUsername(url: string, username: string, masterPassword: string): Promise<VaultItem | null> {
         const cleanUrl = normalizeUrl(url);
@@ -90,7 +116,6 @@ export class AutofillService {
             try {
                 const decryptedUsername = await cryptoService.decrypt(masterPassword, item.username);
                 if (decryptedUsername === username) {
-                    // We found a match for both URL (via hash) and Username. Decrypt the rest.
                     
                     let decryptedFields = undefined;
                     if (item.fields) {
