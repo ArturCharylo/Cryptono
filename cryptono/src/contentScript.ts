@@ -5,40 +5,36 @@ interface CustomField {
     type: string;
 }
 
-// This function is located here, because contentScripts doesn't allow imports here
-export function showAutoSaveToast(message: string = 'Data saved!') {
-    // 1. Check access
-    if (typeof document === 'undefined') {
-        console.error('Cannot show toast from Background Script directly. Use messaging.');
-        return;
-    }
+// --- UI COMPONENTS ---
 
-    // 2. Main container
+export function showAutoSaveToast(message: string = 'Data saved!') {
+    if (typeof document === 'undefined') return;
+
+    const existing = document.getElementById('cryptono-toast-host');
+    if (existing) existing.remove();
+
     const host = document.createElement('div');
     host.id = 'cryptono-toast-host';
     Object.assign(host.style, {
         position: 'fixed',
         top: '20px',
         right: '20px',
-        zIndex: '2147483647', // Max Z-index to ensure nothing covers our toast
-        pointerEvents: 'none' // Avoid blocking actions underneath
+        zIndex: '2147483647',
+        pointerEvents: 'none'
     });
 
-    // 3. Shadow DOM
     const shadow = host.attachShadow({ mode: 'open' });
-
-    // 4. HTML & CSS
     const style = document.createElement('style');
     style.textContent = `
         .toast {
-            background-color: #10B981; /* Success Green */
+            background-color: #10B981;
             color: white;
             padding: 12px 24px;
             border-radius: 8px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             font-size: 14px;
             font-weight: 500;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             display: flex;
             align-items: center;
             gap: 8px;
@@ -47,45 +43,106 @@ export function showAutoSaveToast(message: string = 'Data saved!') {
             transition: opacity 0.3s ease, transform 0.3s ease;
             pointer-events: auto;
         }
-        .toast.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        .icon {
-            font-size: 18px;
-        }
+        .toast.visible { opacity: 1; transform: translateY(0); }
+        .icon { font-size: 18px; }
     `;
 
     const toastDiv = document.createElement('div');
     toastDiv.className = 'toast';
-    toastDiv.innerHTML = `
-        <span class="icon">🔒</span>
-        <span>${message}</span>
-    `;
+    toastDiv.innerHTML = `<span class="icon">🔒</span><span>${message}</span>`;
 
-    // 5. Complete Toast
     shadow.appendChild(style);
     shadow.appendChild(toastDiv);
     document.body.appendChild(host);
 
-    // 6. Animation after entering DOM
-    requestAnimationFrame(() => {
-        toastDiv.classList.add('visible');
-    });
+    requestAnimationFrame(() => toastDiv.classList.add('visible'));
 
-    // 7. Auto hide after 3s
     setTimeout(() => {
         toastDiv.classList.remove('visible');
-        setTimeout(() => {
-            host.remove();
-        }, 300);
+        setTimeout(() => host.remove(), 300);
     }, 3000);
 }
 
-const autoFill = async () => {
-    // Call background.ts for user data on current host
-    const hostname = globalThis.location.hostname;
+// Dropdown UI (Inline Suggestion)
+const createSuggestionDropdown = (input: HTMLInputElement, username: string, onFill: () => void) => {
+    if (document.getElementById('cryptono-dropdown-host')) return;
 
+    const host = document.createElement('div');
+    host.id = 'cryptono-dropdown-host';
+    Object.assign(host.style, {
+        position: 'absolute',
+        zIndex: '2147483647',
+        top: '0px', left: '0px', width: '100%'
+    });
+
+    const shadow = host.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = `
+        .dropdown {
+            position: absolute;
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            min-width: 200px;
+            animation: fadeIn 0.15s ease-out;
+        }
+        .dropdown:hover { background: #2a2a2a; border-color: #555; }
+        .row { display: flex; align-items: center; gap: 10px; }
+        .logo { font-size: 18px; }
+        .text { display: flex; flex-direction: column; }
+        .user { font-weight: 600; }
+        .hint { font-size: 11px; color: #aaa; margin-top: 2px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+    `;
+
+    const rect = input.getBoundingClientRect();
+    const dropdown = document.createElement('div');
+    dropdown.className = 'dropdown';
+    dropdown.style.top = `${rect.bottom + window.scrollY + 4}px`;
+    dropdown.style.left = `${rect.left + window.scrollX}px`;
+
+    dropdown.innerHTML = `
+        <div class="row">
+            <span class="logo">🔒</span>
+            <div class="text">
+                <span class="user">${username || 'Unknown User'}</span>
+                <span class="hint">Click to autofill</span>
+            </div>
+        </div>
+    `;
+
+    const close = () => {
+        host.remove();
+        document.removeEventListener('mousedown', outsideClickHandler);
+    };
+
+    const outsideClickHandler = (e: MouseEvent) => {
+        if (e.target !== input && e.target !== host) close();
+    };
+
+    dropdown.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        onFill();
+        close();
+    });
+
+    shadow.appendChild(style);
+    shadow.appendChild(dropdown);
+    document.body.appendChild(host);
+
+    setTimeout(() => document.addEventListener('mousedown', outsideClickHandler), 50);
+};
+
+// --- MAIN LOGIC ---
+
+const autoFill = async () => {
+    const hostname = globalThis.location.hostname;
     try {
         const response = await chrome.runtime.sendMessage({
             type: 'AUTOFILL_REQUEST',
@@ -93,90 +150,97 @@ const autoFill = async () => {
         });
 
         if (response?.success && response?.data) {
-            // Pass retrieved fields to the filling function
             fillForms(response.data.username, response.data.password, response.data.fields);
-        } else {
-            // Vault locked or no matching data found - ignore request
         }
     } catch (err) {
-        // Communication error
         console.debug('Cryptono connection issue:', err);
     }
 };
 
 const fillForms = (username: string, pass: string, customFields?: CustomField[]) => {
-    // Find all password fields
     const passwordInputs = document.querySelectorAll('input[type="password"]');
 
     for (const passwordInput of passwordInputs) {
         const input = passwordInput as HTMLInputElement;
         const form = input.closest('form');
 
-        // 1. Autofill password (always first)
-        input.value = pass;
-        // Call events for popular web frameworks to notice (example: React, Vue)
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        input.style.backgroundColor = '#e8f0fe';
-
-        // Prepare scope for inputs (form or body if form is missing)
         const inputsScope = form ? form : document.body;
         const allScopeInputs = Array.from(inputsScope.querySelectorAll('input, textarea, select')) as HTMLInputElement[];
 
-        // 2. PRIORITY CHANGE: Fill Custom Fields BEFORE generic Username heuristic.
-        // We now use fuzzy matching logic to handle complex IDs (like "1firstName") matching simple keys ("First Name")
+        // --- PLAN EXECUTION ---
+        const targetsToFill = new Map<HTMLInputElement, string>();
+
+        // 1. Plan Password
+        targetsToFill.set(input, pass);
+
+        // 2. Plan Custom Fields (UPDATED ALGORITHM: BEST MATCH SCORING)
         if (customFields && customFields.length > 0) {
             customFields.forEach(field => {
-                const cleanFieldName = field.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const cleanFieldName = field.name.toLowerCase().replace(/[^a-z0-9]/g, ''); // "First Name" -> "firstname"
 
-                // Find the best matching input in the scope
-                const targetInput = allScopeInputs.find(candidate => {
-                    // Skip password and hidden fields
-                    if (candidate.type === 'password' || candidate.type === 'hidden') return false;
+                let bestCandidate: HTMLInputElement | null = null;
+                let highestScore = 0;
 
-                    // A. Check attributes (Name/ID) - Fuzzy containment check
-                    const candidateName = (candidate.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                    const candidateId = (candidate.id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                allScopeInputs.forEach(candidate => {
+                    // Skip invalid candidates
+                    if (candidate.type === 'password' || candidate.type === 'hidden' || candidate.type === 'submit' || candidate.type === 'image') return;
+                    // Don't overwrite if we already decided this field belongs to another Custom Field
+                    if (targetsToFill.has(candidate)) return;
+
+                    let score = 0;
                     
-                    if (candidateName && candidateName.includes(cleanFieldName)) return true;
-                    if (candidateId && candidateId.includes(cleanFieldName)) return true;
+                    // Normalize candidate attributes
+                    const cName = (candidate.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const cId = (candidate.id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const cLabel = getFieldLabel(candidate).toLowerCase().replace(/[^a-z0-9]/g, '');
 
-                    // B. Check visible Label (Crucial for sites like RoboForm test)
-                    // We reuse the getFieldLabel helper defined below
-                    const label = getFieldLabel(candidate).toLowerCase().replace(/[^a-z0-9]/g, '');
-                    if (label && label.includes(cleanFieldName)) return true;
+                    // A. Exact Label Match (Highest Priority)
+                    // If user named field "First Name" and label is "First Name" -> Perfection.
+                    if (cLabel === cleanFieldName) score += 100;
+                    else if (cLabel.includes(cleanFieldName)) score += 60;
 
-                    return false;
+                    // B. Exact Name/ID Match
+                    if (cName === cleanFieldName || cId === cleanFieldName) score += 90;
+                    
+                    // C. Partial Name/ID Match (Fuzzy)
+                    // "1firstName" includes "firstname"
+                    else if (cName.includes(cleanFieldName) || cId.includes(cleanFieldName)) score += 50;
+
+                    // D. Penalty for very long names (avoids matching "First Name" with "First Name Verification Code")
+                    if (cName.length > cleanFieldName.length + 10) score -= 20;
+
+                    // E. Sanity check: Field must be empty to be a good candidate (unless we want to overwrite)
+                    if (candidate.value && candidate.value.length > 0) score -= 30;
+
+                    if (score > highestScore && score > 0) {
+                        highestScore = score;
+                        bestCandidate = candidate;
+                    }
                 });
 
-                // Only fill if found and currently empty to avoid overwriting user input
-                if (targetInput && !targetInput.value) {
-                    targetInput.value = field.value;
-                    targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    targetInput.style.backgroundColor = '#e8f0fe'; // Mark as autofilled
+                if (bestCandidate) {
+                    targetsToFill.set(bestCandidate, field.value);
                 }
             });
         }
 
-        // 3. Find login field closely to password (Heuristic fallback)
+        // 3. Plan Username (Heuristic)
         let usernameInput: HTMLInputElement | null = null;
         let bestScore = -1;
 
-        // Filter potential username inputs
         const potentialUsernames = allScopeInputs.filter(i => {
-            // Must not be the password itself, hidden, submit, or already filled (e.g. by custom fields)
+            // CRITICAL: Ignore fields already claimed by Custom Fields logic
+            if (targetsToFill.has(i)) return false;
+
             const isAlreadyFilled = i.style.backgroundColor === 'rgb(232, 240, 254)' || (i.value && i.value.length > 0);
             return i !== input &&
                    i.type !== 'hidden' && 
                    i.type !== 'submit' && 
                    i.type !== 'button' &&
                    !isAlreadyFilled &&
-                   // Ensure it appears before password in the DOM structure
                    (i.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING);
         });
 
-        // Use the scoring heuristic defined below to find the best candidate
         potentialUsernames.forEach(candidate => {
             const score = scoreUsernameInput(candidate);
             if (score > bestScore) {
@@ -185,29 +249,64 @@ const fillForms = (username: string, pass: string, customFields?: CustomField[])
             }
         });
 
-        // Fallback logic: If heuristics failed, take the input strictly before the password
+        // Fallback for Username
         if (!usernameInput) {
              const passIndex = allScopeInputs.indexOf(input);
              if (passIndex > 0) {
                  const prevInput = allScopeInputs[passIndex - 1];
-                 // Basic validation for the previous input
-                 if (prevInput.type !== 'hidden' && prevInput.type !== 'submit') {
+                 const isReserved = targetsToFill.has(prevInput);
+                 if (prevInput.type !== 'hidden' && prevInput.type !== 'submit' && !isReserved) {
                      usernameInput = prevInput;
                  }
              }
         }
 
-        // 4. Fill Username ONLY if it wasn't already filled by Custom Fields logic
+        // Add Username to Plan
         if (usernameInput) {
             const uInput = usernameInput as HTMLInputElement;
-            if (!uInput.value) {
-                uInput.value = username;
-                uInput.dispatchEvent(new Event('input', { bubbles: true }));
-                uInput.dispatchEvent(new Event('change', { bubbles: true }));
-                
-                // Mark that Cryptono autofilled the input with updated background color
-                uInput.style.backgroundColor = '#e8f0fe';
+            if (!uInput.value && !targetsToFill.has(uInput)) {
+                targetsToFill.set(uInput, username);
             }
+        }
+
+        // --- EXECUTION FUNCTION ---
+        const executeFill = () => {
+            targetsToFill.forEach((value, targetEl) => {
+                // Ensure field is cleared before filling to prevent concatenation issues
+                targetEl.value = value;
+                targetEl.dispatchEvent(new Event('input', { bubbles: true }));
+                targetEl.dispatchEvent(new Event('change', { bubbles: true }));
+                targetEl.style.backgroundColor = '#e8f0fe';
+            });
+            showAutoSaveToast('Credentials filled!');
+        };
+
+        // --- ATTACH UI LISTENERS ---
+        const attachListener = (target: HTMLInputElement) => {
+            if (target.dataset.cryptonoAttached === 'true') return;
+            target.dataset.cryptonoAttached = 'true';
+
+            target.style.backgroundImage = `url('${chrome.runtime.getURL("assets/icon-16.png")}')`;
+            target.style.backgroundRepeat = "no-repeat";
+            target.style.backgroundPosition = "right 10px center";
+            target.style.backgroundSize = "16px";
+            // Padding to prevent text overlapping icon
+            target.style.paddingRight = "30px"; 
+
+            target.addEventListener('focus', () => {
+                if (!target.value || target.value === username) {
+                    createSuggestionDropdown(target, username, executeFill);
+                }
+            });
+
+            if (document.activeElement === target) {
+                createSuggestionDropdown(target, username, executeFill);
+            }
+        };
+
+        attachListener(input);
+        if (usernameInput) {
+            attachListener(usernameInput as HTMLInputElement);
         }
     }
 };
@@ -219,13 +318,9 @@ if (document.readyState === 'loading') {
     setTimeout(autoFill, 500);
 }
 
-/**
- Below This comment functions related to AutoSave start
-**/
 
 // --- HEURISTICS HELPERS ---
 
-// Helper to find the best label/name for a field
 function getFieldLabel(input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): string {
     // 1. Check explicit <label for="id">
     if (input.id) {
@@ -236,26 +331,25 @@ function getFieldLabel(input: HTMLInputElement | HTMLTextAreaElement | HTMLSelec
     // 2. Check parent <label> wrapper
     const parentLabel = input.closest('label');
     if (parentLabel && parentLabel.firstChild) {
-        // Try to get text content excluding the input's own value/text
-        // We use innerText to get visible text, but fallback to textContent if needed
-        const labelText = parentLabel.innerText || parentLabel.textContent || '';
-        return labelText.replace(input.value, '').trim();
+        // Clone to safely extract text without input value
+        const clone = parentLabel.cloneNode(true) as HTMLElement;
+        const children = clone.querySelectorAll('input, select, textarea');
+        children.forEach(c => c.remove());
+        return (clone.textContent || '').trim();
     }
 
-    // 3. Check aria-label or aria-labelledby
+    // 3. Check aria-label
     const ariaLabel = input.getAttribute('aria-label');
     if (ariaLabel) return ariaLabel;
 
-    // 4. Check placeholder (Select element does not have a placeholder)
+    // 4. Placeholder
     if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
         if (input.placeholder) return input.placeholder;
     }
 
-    // 5. Fallback to name or id
-    return input.name || input.id || 'Unknown Field';
+    return input.name || input.id || '';
 }
 
-// Helper to check if input is likely a username field based on attributes
 function scoreUsernameInput(input: HTMLInputElement): number {
     let score = 0;
     const name = (input.name || '').toLowerCase();
@@ -268,6 +362,7 @@ function scoreUsernameInput(input: HTMLInputElement): number {
     if (name === 'username' || name === 'login' || name === 'email') score += 50;
     if (id === 'username' || id === 'login' || id === 'email') score += 50;
     if (type === 'email') score += 40;
+    if (name === 'userid' || id === 'userid') score += 45; // Common for bank/app IDs
 
     // Medium priority signals
     if (name.includes('user') || name.includes('login') || name.includes('mail')) score += 20;
@@ -278,38 +373,24 @@ function scoreUsernameInput(input: HTMLInputElement): number {
     return score;
 }
 
-// form submit Listener - Allows to catch final data from the form before it's processed by the site and 'lost'
+// AutoSave Listener (Unchanged logic)
 document.addEventListener('submit', async (e) => {
     const target = e.target as HTMLElement;
-    
-    // 1. Identify the scope (Form or container)
-    // If the event target is a form, use it. Otherwise, look for the closest form.
     let form = (target.tagName === 'FORM' ? target : target.closest('form')) as HTMLElement;
-    
-    // Fallback: If no <form> tag (common in SPAs), try to find a container with inputs
-    if (!form) {
-        // If we clicked a button, the form scope is likely the button's closest container
-        form = target.closest('div, section, main') as HTMLElement;
-    }
-
+    if (!form) form = target.closest('div, section, main') as HTMLElement;
     if (!form) return;
 
-    // 2. Find all relevant inputs in that scope
     const allInputs = Array.from(form.querySelectorAll('input, textarea, select')) as HTMLInputElement[];
     const passwordInput = allInputs.find(i => i.type === 'password');
 
-    // If no password field involved or empty, we are probably not interested
     if (!passwordInput || !passwordInput.value) return;
 
-    // 3. Heuristic to find the best Username candidate
     let usernameInput: HTMLInputElement | null = null;
     let bestScore = -1;
 
-    // Filter potential username inputs (must appear BEFORE password in DOM typically)
     const potentialUsernames = allInputs.filter(i => {
         return i !== passwordInput && 
                (i.type === 'text' || i.type === 'email' || i.type === 'tel') &&
-               // Ensure it appears before password in the DOM structure (safe assumption for 99% of forms)
                (i.compareDocumentPosition(passwordInput) & Node.DOCUMENT_POSITION_FOLLOWING);
     });
 
@@ -321,32 +402,22 @@ document.addEventListener('submit', async (e) => {
         }
     });
 
-    // Fallback: If no scoring matched, take the input strictly before the password
     if (!usernameInput && potentialUsernames.length > 0) {
         usernameInput = potentialUsernames[potentialUsernames.length - 1];
     }
 
-    // If both login and password are found
     if (usernameInput && usernameInput.value) {
         const url = globalThis.location.hostname;
-        
-        // 4. Collect Custom/Dynamic Fields for AutoSave
         const collectedFields: CustomField[] = [];
 
         allInputs.forEach((input) => {
-            // Skip:
-            // 1. Hidden inputs or unchecked radios/checkboxes
-            // 2. Action buttons (submit, button, image)
-            // 3. Main credentials (we already have them)
             const isHidden = input.type === 'hidden' || input.style.display === 'none';
             const isAction = input.type === 'submit' || input.type === 'button' || input.type === 'image';
             const isUnchecked = (input.type === 'checkbox' || input.type === 'radio') && !input.checked;
             const isMainCreds = input === passwordInput || input === usernameInput;
 
             if (!isHidden && !isAction && !isUnchecked && !isMainCreds) {
-                // Only save if it has a value
                 if (input.value && input.value.trim() !== '') {
-                    // Try to get a stable identifier (name/id) first, fall back to human label
                     const humanName = getFieldLabel(input);
                     const key = input.name || input.id || humanName;
 
@@ -359,7 +430,6 @@ document.addEventListener('submit', async (e) => {
             }
         });
 
-        // send data to be processed
         try {
             await chrome.runtime.sendMessage({
                 type: 'AUTOSAVE_REQUEST',
@@ -367,14 +437,14 @@ document.addEventListener('submit', async (e) => {
                     url: url,
                     username: usernameInput.value,
                     password: passwordInput.value,
-                    fields: collectedFields // Include collected custom fields
+                    fields: collectedFields
                 }
             });
         } catch (err) {
             console.error('Cryptono AutoSave error:', err);
         }
     }
-}, true); // Use capture phase to catch event before other handlers potentially stop it
+}, true);
 
 chrome.runtime.onMessage.addListener((request) => {
     if (request.type === 'SHOW_TOAST') {
