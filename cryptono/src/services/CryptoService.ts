@@ -165,9 +165,10 @@ export class CryptoService {
         }
     }
 
-    // Explicitly cast result to Uint8Array<ArrayBuffer>
+    // Return explicit Uint8Array<ArrayBuffer> to match BufferSource requirements
     generateSalt(): Uint8Array<ArrayBuffer> {
-        const salt = globalThis.crypto.getRandomValues(new Uint8Array(CRYPTO_KEYS.SALT_LENGTH));
+        const salt = new Uint8Array(CRYPTO_KEYS.SALT_LENGTH);
+        globalThis.crypto.getRandomValues(salt);
         return salt as Uint8Array<ArrayBuffer>;
     }
     
