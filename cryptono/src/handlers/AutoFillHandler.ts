@@ -1,5 +1,5 @@
 import { autofillService } from '../services/AutofillService';
-import { STORAGE_KEYS } from '../constants/constants';
+import { SessionService } from '../services/SessionService';
 import type { AutoFillResponse } from '../types';
 
 /**
@@ -10,17 +10,18 @@ export async function handleAutofill(
   sendResponse: (response: AutoFillResponse) => void
 ): Promise<void> {
   try {
-    // Check if user is logged in by checking if master password is in session
-    const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
-    const masterPassword = sessionData[STORAGE_KEYS.MASTER] as string;
-
-    if (!masterPassword) {
-      sendResponse({ success: false, error: 'LOCKED' }); // Unathorized
-      return;
+    // 1. Check if user is logged in by attempting to get the Vault Key from memory
+    try {
+        SessionService.getInstance().getKey();
+    } catch (_error) {
+        // If getKey() throws, it means vaultKey is null => Vault is locked
+        sendResponse({ success: false, error: 'LOCKED' });
+        return;
     }
 
-    // Find matching data once the URL is matched
-    const item = await autofillService.findCredentialsForUrl(url, masterPassword);
+    // 2. Find matching data once the URL is matched
+    // No need to pass masterPassword anymore
+    const item = await autofillService.findCredentialsForUrl(url);
 
     if (item) {
       sendResponse({ 
