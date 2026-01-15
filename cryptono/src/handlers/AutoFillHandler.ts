@@ -12,6 +12,8 @@ export async function handleAutofill(
   try {
     // 1. Check if user is logged in by attempting to get the Vault Key from memory
     try {
+        // Attempt to restore session first in case background script restarted
+        await SessionService.getInstance().restoreSession();
         SessionService.getInstance().getKey();
     } catch (_error) {
         // If getKey() throws, it means vaultKey is null => Vault is locked
