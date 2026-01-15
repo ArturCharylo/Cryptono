@@ -1,12 +1,24 @@
 import { vaultRepository } from '../repositories/VaultRepository';
 import { cryptoService } from './CryptoService';
+import { SessionService } from './SessionService';
 import { normalizeUrl } from '../utils/urlHelper';
 import type { VaultItem } from '../types/index';
 
 export class AutofillService {
     
     // Scan DB for URL matching with the current URL (The one that the user is currently on)
-    async findCredentialsForUrl(currentUrl: string, masterPassword: string): Promise<VaultItem | null> {
+    // Removed masterPassword argument
+    async findCredentialsForUrl(currentUrl: string): Promise<VaultItem | null> {
+        
+        // 0. Get the Vault Key from session. If locked, this throws an error.
+        let vaultKey: CryptoKey;
+        try {
+            vaultKey = SessionService.getInstance().getKey();
+        } catch (_error) {
+            console.warn("AutofillService: Vault is locked, cannot search for credentials.");
+            return null;
+        }
+
         // 1. Normalize the URL (e.g., https://login.google.com/ -> login.google.com)
         const cleanPageUrl = normalizeUrl(currentUrl);
 
@@ -22,8 +34,9 @@ export class AutofillService {
         }
 
         // 3. Calculate blind index hashes for these domains (in parallel for performance)
+        // Using vaultKey instead of masterPassword
         const hashesToCheck = await Promise.all(
-            domainsToCheck.map(domain => cryptoService.getBlindIndex(masterPassword, domain))
+            domainsToCheck.map(domain => cryptoService.getBlindIndex(vaultKey, domain))
         );
 
         // 4. Check each hash in the repository
@@ -35,7 +48,8 @@ export class AutofillService {
                 
                 for (const encryptedItem of encryptedItems) {
                     try {
-                        const decryptedUrl = await cryptoService.decrypt(masterPassword, encryptedItem.url);
+                        // Use decryptItem with vaultKey
+                        const decryptedUrl = await cryptoService.decryptItem(vaultKey, encryptedItem.url);
                         
                         // Additional check to ensure exact domain match (avoids hash collisions)
                         const normalizedDecryptedUrl = normalizeUrl(decryptedUrl);
@@ -46,20 +60,20 @@ export class AutofillService {
                             // Decrypt optional fields
                             let decryptedFields = undefined;
                             if (encryptedItem.fields) {
-                                const jsonString = await cryptoService.decrypt(masterPassword, encryptedItem.fields);
+                                const jsonString = await cryptoService.decryptItem(vaultKey, encryptedItem.fields);
                                 decryptedFields = JSON.parse(jsonString);
                             }
 
                             let decryptedNote = undefined;
                             if (encryptedItem.note) {
-                                decryptedNote = await cryptoService.decrypt(masterPassword, encryptedItem.note);
+                                decryptedNote = await cryptoService.decryptItem(vaultKey, encryptedItem.note);
                             }
 
                             return {
                                 id: encryptedItem.id,
                                 url: decryptedUrl,
-                                username: await cryptoService.decrypt(masterPassword, encryptedItem.username),
-                                password: await cryptoService.decrypt(masterPassword, encryptedItem.password),
+                                username: await cryptoService.decryptItem(vaultKey, encryptedItem.username),
+                                password: await cryptoService.decryptItem(vaultKey, encryptedItem.password),
                                 createdAt: encryptedItem.createdAt,
                                 fields: decryptedFields,
                                 note: decryptedNote
@@ -105,34 +119,42 @@ export class AutofillService {
     }
 
     // Optimized method for checking duplicates when adding new items
-    async findItemByUrlAndUsername(url: string, username: string, masterPassword: string): Promise<VaultItem | null> {
+    // Removed masterPassword argument
+    async findItemByUrlAndUsername(url: string, username: string): Promise<VaultItem | null> {
+        let vaultKey: CryptoKey;
+        try {
+            vaultKey = SessionService.getInstance().getKey();
+        } catch (_error) {
+            return null;
+        }
+
         const cleanUrl = normalizeUrl(url);
-        const urlHash = await cryptoService.getBlindIndex(masterPassword, cleanUrl);
+        const urlHash = await cryptoService.getBlindIndex(vaultKey, cleanUrl);
         
         // Fetch candidates by hash first
         const encryptedItems = await vaultRepository.getItemsByUrlHash(urlHash);
 
         for (const item of encryptedItems) {
             try {
-                const decryptedUsername = await cryptoService.decrypt(masterPassword, item.username);
+                const decryptedUsername = await cryptoService.decryptItem(vaultKey, item.username);
                 if (decryptedUsername === username) {
                     
                     let decryptedFields = undefined;
                     if (item.fields) {
-                        const jsonString = await cryptoService.decrypt(masterPassword, item.fields);
+                        const jsonString = await cryptoService.decryptItem(vaultKey, item.fields);
                         decryptedFields = JSON.parse(jsonString);
                     }
 
                     let decryptedNote = undefined;
                     if (item.note) {
-                        decryptedNote = await cryptoService.decrypt(masterPassword, item.note);
+                        decryptedNote = await cryptoService.decryptItem(vaultKey, item.note);
                     }
 
                     return {
                         id: item.id,
-                        url: await cryptoService.decrypt(masterPassword, item.url),
+                        url: await cryptoService.decryptItem(vaultKey, item.url),
                         username: decryptedUsername,
-                        password: await cryptoService.decrypt(masterPassword, item.password),
+                        password: await cryptoService.decryptItem(vaultKey, item.password),
                         createdAt: item.createdAt,
                         fields: decryptedFields,
                         note: decryptedNote
