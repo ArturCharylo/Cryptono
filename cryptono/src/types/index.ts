@@ -5,7 +5,8 @@ export interface User {
     id: string;
     username: string; // Stored as encrypted string in DB, decrypted in app memory
     email: string; // This is encrypted as anything that doesn't have to be plain text won't be
-    validationToken: string;
+    salt: string;
+    encryptedVaultKey: string;
 }
 
 // This interface is created for good practice and TypeScript types verificaton
