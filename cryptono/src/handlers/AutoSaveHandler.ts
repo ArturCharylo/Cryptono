@@ -8,6 +8,8 @@ export async function handleInputSave(
      try {
         // Check if user is logged in by attempting to retrieve the key from SessionService
         try {
+            // Attempt to restore session first in case background script restarted
+            await SessionService.getInstance().restoreSession();
             // We check if the key exists. If not, getKey() throws an error.
             SessionService.getInstance().getKey();
         } catch (_error) {
