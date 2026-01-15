@@ -8,7 +8,7 @@ import { Register } from '../components/Register';
 import { Passwords } from '../components/Passwords';
 import { AddItem } from '../components/AddItem';
 import { EditItem } from '../components/EditItem';
-import { STORAGE_KEYS } from '../constants/constants';
+import { SessionService } from '../services/SessionService';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const root = document.getElementById('app') as HTMLElement;
@@ -26,12 +26,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     router.addRoute('/editItem', () => new EditItem(navigate).render(), () => new EditItem(navigate).afterRender())
 
     // Token -> Passwords
-    const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
-    if (sessionData.masterPassword) {
+    const isSessionActive = await SessionService.getInstance().restoreSession();
+
+    if (isSessionActive) {
+        // Mamy klucz -> idziemy do haseł
         router.navigate('/passwords');
-    }
-    // NO Token -> Login
-    else {
+    } else {
+        // Brak klucza -> idziemy do logowania
         router.navigate('/login');
     }
 });
