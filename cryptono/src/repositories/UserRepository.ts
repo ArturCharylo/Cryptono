@@ -1,6 +1,6 @@
 import { databaseContext } from '../services/DatabaseContext';
 import { cryptoService } from '../services/CryptoService';
-import { SessionService } from '../services/SessionService'; // Importujemy sesję
+import { SessionService } from '../services/SessionService';
 import { DB_CONFIG } from '../constants/constants';
 import { buffToBase64, base64ToBuff } from '../utils/buffer';
 import type { User } from '../types/index';
@@ -8,28 +8,30 @@ import type { User } from '../types/index';
 const STORE_NAME = DB_CONFIG.STORE_NAME;
 
 export class UserRepository {
-    // Rejestracja nowego użytkownika
+    // Register new user
     async createUser(username: string, email: string, masterPass: string, repeatPass: string): Promise<void> {
         if (masterPass !== repeatPass) {
             throw new Error('Passwords do not match');
         }
         await databaseContext.ensureInit();
 
-        // 1. Generujemy losową sól dla użytkownika
+        // 1. Generate random salt
         const salt = cryptoService.generateSalt();
 
-        // 2. Tworzymy Master Key (to powolna operacja - 1M iteracji)
-        // Służy TYLKO do zabezpieczenia Klucza Sejfu
-        const masterKey = await cryptoService.deriveMasterKey(masterPass, salt);
+        // 2. Create Master Key
+        // Use 'as any' if you still have TS issues with BufferSource types here, or rely on updated buffer utils
+        const masterKey = await cryptoService.deriveMasterKey(
+            masterPass, 
+            salt
+        );
 
-        // 3. Generujemy nowy, losowy Vault Key (AES)
-        // To tym kluczem będziemy szyfrować wszystkie hasła
+        // 3. Generate Vault Key
         const vaultKey = await cryptoService.generateVaultKey();
 
-        // 4. Szyfrujemy Vault Key za pomocą Master Key, by zapisać go bezpiecznie w bazie
+        // 4. Encrypt Vault Key
         const encryptedVaultKey = await cryptoService.exportAndEncryptVaultKey(vaultKey, masterKey);
 
-        // 5. Szyfrujemy email za pomocą Vault Key (szybkie szyfrowanie)
+        // 5. Encrypt email
         const encryptedEmail = await cryptoService.encryptItem(vaultKey, email);
 
         return new Promise((resolve, reject) => {
@@ -41,15 +43,24 @@ export class UserRepository {
 
             const newUser: User = {
                 id: crypto.randomUUID(),
-                username: username, // plain text (potrzebne do indeksowania)
-                email: encryptedEmail, // ciphertext
-                salt: buffToBase64(salt), // Zapisujemy sól jako string Base64
-                encryptedVaultKey: encryptedVaultKey // Zapisujemy zaszyfrowany klucz do sejfu
+                username: username,
+                email: encryptedEmail,
+                salt: buffToBase64(salt),
+                encryptedVaultKey: encryptedVaultKey
             };
 
             const request = objectStore.add(newUser);
 
-            request.onsuccess = () => resolve();
+            request.onsuccess = async () => {
+                // AUTO-LOGIN after registration:
+                // Save key to persistent session storage
+                try {
+                    await SessionService.getInstance().saveSession(vaultKey);
+                    resolve();
+                } catch (_e) {
+                    reject(new Error("Failed to start session"));
+                }
+            };
 
             request.onerror = () => {
                 if (request.error?.name === 'ConstraintError') {
@@ -61,7 +72,7 @@ export class UserRepository {
         });
     }
 
-    // Logowanie użytkownika
+    // Login user
     async Login(username: string, masterPass: string): Promise<void> {
         await databaseContext.ensureInit();
 
@@ -72,7 +83,6 @@ export class UserRepository {
             const transaction = db.transaction([STORE_NAME], 'readonly');
             const objectStore = transaction.objectStore(STORE_NAME);
 
-            // Szukamy użytkownika po nazwie
             const usernameIndex = objectStore.index('username');
             const request = usernameIndex.get(username);
 
@@ -84,34 +94,34 @@ export class UserRepository {
                     return;
                 }
 
-                // Dodatkowe sprawdzenie dla bezpieczeństwa
                 if (userRecord.username !== username) {
                     reject(new Error('Invalid username'));
                     return;
                 }
 
                 try {
-                    // 1. Odzyskujemy sól zapisaną w bazie
+                    // 1. Recover salt
                     const salt = base64ToBuff(userRecord.salt);
 
-                    // 2. Odtwarzamy Master Key z wpisanego hasła i soli
-                    const masterKey = await cryptoService.deriveMasterKey(masterPass, salt);
+                    // 2. Derive Master Key
+                    const masterKey = await cryptoService.deriveMasterKey(
+                        masterPass, 
+                        salt
+                    );
 
-                    // 3. Próbujemy odszyfrować Vault Key
-                    // Jeśli hasło jest błędne, tutaj poleci wyjątek (błąd deszyfracji/paddingu)
+                    // 3. Decrypt Vault Key
                     const vaultKey = await cryptoService.decryptAndImportVaultKey(
                         userRecord.encryptedVaultKey, 
                         masterKey
                     );
                     
-                    // 4. Sukces! Zapisujemy odszyfrowany klucz w sesji (pamięć RAM)
-                    // Dzięki temu nie musimy pytać o hasło przy każdej operacji
-                    SessionService.getInstance().setKey(vaultKey);
+                    // 4. Save session in storage (persists popup close)
+                    await SessionService.getInstance().saveSession(vaultKey);
 
                     resolve();
 
                 } catch (error) {
-                    console.error("Login failed (likely wrong password):", error);
+                    console.error("Login failed:", error);
                     reject(new Error('Invalid password'));
                 }
             };
