@@ -25,3 +25,26 @@ export const stringToBuff = (str: string): Uint8Array<ArrayBuffer> => {
 export const buffToString = (buffer: BufferSource): string => {
     return new TextDecoder().decode(buffer);
 };
+
+// --- NEW HELPER FUNCTIONS FOR ARGON2 ---
+
+// Converts any BufferSource (ArrayBuffer or View) to a Hex string
+// We use "buffer as any", similar to buffToBase64, to handle all BufferSource variants
+export const buffToHex = (buffer: BufferSource): string => {
+    return Array.from(new Uint8Array(buffer as any))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+};
+
+// Converts a Hex string to a safe Uint8Array<ArrayBuffer>
+// We cast the result to assure TypeScript it is not a SharedArrayBuffer
+export const hexToBuff = (hex: string): Uint8Array<ArrayBuffer> => {
+    if (hex.length % 2 !== 0) throw new Error("Invalid hex string");
+    
+    const array = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+        array[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+    }
+    
+    return array as Uint8Array<ArrayBuffer>;
+};
