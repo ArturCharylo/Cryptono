@@ -152,7 +152,7 @@ export class Login {
         try {
             await userRepository.Login(username, password);
         } catch (err) {
-            // Log error to console, which allows usto avoid warnings for only throw new Error in catch
+            // Log error to console, which allows us to avoid warnings for only throw new Error in catch
             console.error("Login attempt failed:", err);
             
             // Change error message to be more generic

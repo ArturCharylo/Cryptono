@@ -1,5 +1,4 @@
 import { vaultRepository } from "../repositories/VaultRepository";
-import { STORAGE_KEYS } from "../constants/constants";
 import type { VaultItem } from "../types";
 import { addValidation } from "../validation/validate";
 import { generateStrongPassword } from "../utils/passGen";
@@ -270,13 +269,6 @@ export class AddItem {
             try {
                 await this.validateItem(url, username, password);
 
-                const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
-                const masterPassword = sessionData[STORAGE_KEYS.MASTER] as string;
-
-                if (!masterPassword) {
-                    throw new Error("Session expired. Please login again.");
-                }
-
                 const newItem: VaultItem = {
                     id: crypto.randomUUID(),
                     url: url,
@@ -287,12 +279,16 @@ export class AddItem {
                     fields: customFields // Save custom fields
                 };
 
-                await vaultRepository.addItem(newItem, masterPassword);
+                // FIX: No more masterPassword passed here. 
+                // Repository will fetch key from SessionService automatically.
+                await vaultRepository.addItem(newItem);
+                
                 this.navigate('/passwords');
 
             } catch (error) {            
-                if ((error as Error).message.includes("Session expired")) {
-                    showToastMessage(((error as Error).message), ToastType.ERROR, 2500);
+                // We check if the error is about locked vault/missing session
+                if ((error as Error).message.includes("Vault is locked") || (error as Error).message.includes("not logged in")) {
+                    showToastMessage("Session expired. Please login again.", ToastType.ERROR, 2500);
                     this.navigate('/login');
                 }
                 else if (error instanceof Error) {
