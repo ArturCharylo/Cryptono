@@ -1,98 +1,152 @@
-import { databaseContext } from '../services/DatabaseContext';
-import { cryptoService } from '../services/CryptoService';
-import { STORAGE_KEYS, DB_CONFIG } from '../constants/constants';
-import type { User } from '../types/index';
+import { buffToBase64, base64ToBuff, stringToBuff, buffToString } from "../utils/buffer";
+import { CRYPTO_KEYS } from "../constants/constants";
 
-const STORE_NAME = DB_CONFIG.STORE_NAME;
+export class CryptoService {
+    // 1. GENERATE MASTER KEY
+    async deriveMasterKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
+        const passwordBuffer = stringToBuff(password);
+        
+        const importedPassword = await globalThis.crypto.subtle.importKey(
+            "raw",
+            // FIX: Double cast to bypass SharedArrayBuffer check
+            passwordBuffer as unknown as BufferSource,
+            { name: CRYPTO_KEYS.ALGO_KDF },
+            false,
+            ["deriveKey"]
+        );
 
-export class UserRepository {
-    async createUser(username: string, email: string, masterPass: string, repeatPass: string): Promise<void> {
-        if (masterPass !== repeatPass) {
-            throw new Error('Passwords do not match');
-        }
-        await databaseContext.ensureInit();
-
-        // Encrypt data before entering DB promise
-        const [encryptedValidationToken, encryptedEmail] = await Promise.all([
-            cryptoService.encrypt(masterPass, "VALID_USER"),
-            cryptoService.encrypt(masterPass, email)
-        ]);
-
-        return new Promise((resolve, reject) => {
-            const db = databaseContext.db;
-            if (!db) return reject(new Error("Database not initialized"));
-
-            const transaction = db.transaction([STORE_NAME], 'readwrite');
-            const objectStore = transaction.objectStore(STORE_NAME);
-
-            const newUser: User = {
-                id: crypto.randomUUID(),
-                username: username, // plain text, which is neccessary for index in DB to work
-                email: encryptedEmail, // ciphertext
-                validationToken: encryptedValidationToken
-            };
-
-            const request = objectStore.add(newUser);
-
-            request.onsuccess = () => resolve();
-
-            request.onerror = () => {
-                if (request.error?.name === 'ConstraintError') {
-                    reject(new Error('Username already exists'));
-                } else {
-                    reject(request.error || new Error('Username taken'));
-                }
-            };
-        });
+        return globalThis.crypto.subtle.deriveKey(
+            {
+                name: CRYPTO_KEYS.ALGO_KDF,
+                // FIX: Double cast here as well
+                salt: salt as unknown as BufferSource,
+                iterations: CRYPTO_KEYS.PBKDF2_ITERATIONS,
+                hash: CRYPTO_KEYS.ALGO_HASH
+            },
+            importedPassword,
+            { name: CRYPTO_KEYS.ALGO_AES, length: 256 },
+            false,
+            ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
+        );
     }
 
-    async Login(username: string, masterPass: string): Promise<void> {
-        await databaseContext.ensureInit();
+    // 2. CREATE NEW VAULT KEY
+    async generateVaultKey(): Promise<CryptoKey> {
+        return globalThis.crypto.subtle.generateKey(
+            {
+                name: CRYPTO_KEYS.ALGO_AES,
+                length: 256
+            },
+            true,
+            ["encrypt", "decrypt"]
+        );
+    }
 
-        return new Promise((resolve, reject) => {
-            const db = databaseContext.db;
-            if (!db) return reject(new Error("Database not initialized"));
+    // 3. ENCRYPT VAULT KEY
+    async exportAndEncryptVaultKey(vaultKey: CryptoKey, masterKey: CryptoKey): Promise<string> {
+        const rawKey = await globalThis.crypto.subtle.exportKey("raw", vaultKey);
+        const iv = globalThis.crypto.getRandomValues(new Uint8Array(CRYPTO_KEYS.IV_LENGTH));
 
-            const transaction = db.transaction([STORE_NAME], 'readonly');
-            const objectStore = transaction.objectStore(STORE_NAME);
+        const encryptedKeyBuffer = await globalThis.crypto.subtle.encrypt(
+            { name: CRYPTO_KEYS.ALGO_AES, iv: iv },
+            masterKey,
+            // FIX: Ensure rawKey is treated as BufferSource
+            rawKey as unknown as BufferSource
+        );
 
-            // Search user by username index
-            const usernameIndex = objectStore.index('username');
-            const request = usernameIndex.get(username);
+        return `${buffToBase64(iv)}:${buffToBase64(encryptedKeyBuffer)}`;
+    }
 
-            request.onsuccess = async () => {
-                const userRecord = request.result;
+    // 4. DECRYPT VAULT KEY
+    async decryptAndImportVaultKey(encryptedVaultKeyString: string, masterKey: CryptoKey): Promise<CryptoKey> {
+        const parts = encryptedVaultKeyString.split(':');
+        if (parts.length !== 2) throw new Error("Invalid Vault Key format");
 
-                if (!userRecord) {
-                    reject(new Error('User not found'));
-                    return;
-                }
+        const iv = base64ToBuff(parts[0]);
+        const ciphertext = base64ToBuff(parts[1]);
 
-                // Additional check to ensure username matches
-                if (userRecord.username !== username) {
-                    reject(new Error('Invalid username'));
-                    return;
-                }
+        const rawKeyBuffer = await globalThis.crypto.subtle.decrypt(
+            // FIX: Cast iv to BufferSource
+            { name: CRYPTO_KEYS.ALGO_AES, iv: iv as unknown as BufferSource },
+            masterKey,
+            // FIX: Cast ciphertext to BufferSource
+            ciphertext as unknown as BufferSource
+        );
 
-                try {
-                    // Password verification via decryption of validation token
-                    const decryptedCheck = await cryptoService.decrypt(masterPass, userRecord.validationToken);
+        return globalThis.crypto.subtle.importKey(
+            "raw",
+            rawKeyBuffer,
+            { name: CRYPTO_KEYS.ALGO_AES },
+            true,
+            ["encrypt", "decrypt"]
+        );
+    }
 
-                    if (decryptedCheck === "VALID_USER") {
-                        chrome.storage.session.set({ [STORAGE_KEYS.MASTER]: masterPass });
-                        resolve();
-                    } else {
-                        reject(new Error('Invalid password'));
-                    }
-                } catch (error) {
-                    console.error("Decryption error:", error);
-                    reject(new Error('Invalid password'));
-                }
-            };
+    // 5. FAST DATA ENCRYPTION
+    async encryptItem(vaultKey: CryptoKey, plainText: string): Promise<string> {
+        const iv = globalThis.crypto.getRandomValues(new Uint8Array(CRYPTO_KEYS.IV_LENGTH));
 
-            request.onerror = () => reject(new Error('Database error during login'));
-        });
+        const encryptedContent = await globalThis.crypto.subtle.encrypt(
+            {
+                name: CRYPTO_KEYS.ALGO_AES,
+                iv: iv
+            },
+            vaultKey,
+            // FIX: Double cast
+            stringToBuff(plainText) as unknown as BufferSource
+        );
+
+        return `${buffToBase64(iv)}:${buffToBase64(encryptedContent)}`;
+    }
+
+    // 6. FAST DATA DECRYPTION
+    async decryptItem(vaultKey: CryptoKey, packedData: string): Promise<string> {
+        try {
+            const parts = packedData.split(':');
+            let iv, ciphertext;
+            
+            if (parts.length === 3) {
+                 iv = base64ToBuff(parts[1]);
+                 ciphertext = base64ToBuff(parts[2]);
+            } else {
+                 iv = base64ToBuff(parts[0]);
+                 ciphertext = base64ToBuff(parts[1]);
+            }
+
+            const decryptedContent = await globalThis.crypto.subtle.decrypt(
+                {
+                    name: CRYPTO_KEYS.ALGO_AES,
+                    // FIX: Double cast
+                    iv: iv as unknown as BufferSource,
+                },
+                vaultKey,
+                // FIX: Double cast
+                ciphertext as unknown as BufferSource,
+            );
+
+            return buffToString(decryptedContent);
+        } catch (error) {
+            console.error("Decryption failed:", error);
+            throw new Error("Corrupted data or wrong key context");
+        }
+    }
+
+    generateSalt(): Uint8Array {
+        return globalThis.crypto.getRandomValues(new Uint8Array(CRYPTO_KEYS.SALT_LENGTH));
+    }
+    
+    async getBlindIndex(masterKey: CryptoKey, data: string): Promise<string> {
+         const keyBytes = await globalThis.crypto.subtle.exportKey("raw", masterKey);
+         const keyString = buffToBase64(keyBytes); 
+         
+         const encoder = new TextEncoder();
+         const dataBuffer = encoder.encode(keyString + data);
+         const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', dataBuffer);
+         
+         return Array.from(new Uint8Array(hashBuffer))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
     }
 }
 
-export const userRepository = new UserRepository();
+export const cryptoService = new CryptoService();
