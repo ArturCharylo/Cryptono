@@ -1,152 +1,124 @@
-import { buffToBase64, base64ToBuff, stringToBuff, buffToString } from "../utils/buffer";
-import { CRYPTO_KEYS } from "../constants/constants";
+import { databaseContext } from '../services/DatabaseContext';
+import { cryptoService } from '../services/CryptoService';
+import { SessionService } from '../services/SessionService'; // Importujemy sesję
+import { DB_CONFIG } from '../constants/constants';
+import { buffToBase64, base64ToBuff } from '../utils/buffer';
+import type { User } from '../types/index';
 
-export class CryptoService {
-    // 1. GENERATE MASTER KEY
-    async deriveMasterKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
-        const passwordBuffer = stringToBuff(password);
-        
-        const importedPassword = await globalThis.crypto.subtle.importKey(
-            "raw",
-            // FIX: Double cast to bypass SharedArrayBuffer check
-            passwordBuffer as unknown as BufferSource,
-            { name: CRYPTO_KEYS.ALGO_KDF },
-            false,
-            ["deriveKey"]
-        );
+const STORE_NAME = DB_CONFIG.STORE_NAME;
 
-        return globalThis.crypto.subtle.deriveKey(
-            {
-                name: CRYPTO_KEYS.ALGO_KDF,
-                // FIX: Double cast here as well
-                salt: salt as unknown as BufferSource,
-                iterations: CRYPTO_KEYS.PBKDF2_ITERATIONS,
-                hash: CRYPTO_KEYS.ALGO_HASH
-            },
-            importedPassword,
-            { name: CRYPTO_KEYS.ALGO_AES, length: 256 },
-            false,
-            ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
-        );
-    }
-
-    // 2. CREATE NEW VAULT KEY
-    async generateVaultKey(): Promise<CryptoKey> {
-        return globalThis.crypto.subtle.generateKey(
-            {
-                name: CRYPTO_KEYS.ALGO_AES,
-                length: 256
-            },
-            true,
-            ["encrypt", "decrypt"]
-        );
-    }
-
-    // 3. ENCRYPT VAULT KEY
-    async exportAndEncryptVaultKey(vaultKey: CryptoKey, masterKey: CryptoKey): Promise<string> {
-        const rawKey = await globalThis.crypto.subtle.exportKey("raw", vaultKey);
-        const iv = globalThis.crypto.getRandomValues(new Uint8Array(CRYPTO_KEYS.IV_LENGTH));
-
-        const encryptedKeyBuffer = await globalThis.crypto.subtle.encrypt(
-            { name: CRYPTO_KEYS.ALGO_AES, iv: iv },
-            masterKey,
-            // FIX: Ensure rawKey is treated as BufferSource
-            rawKey as unknown as BufferSource
-        );
-
-        return `${buffToBase64(iv)}:${buffToBase64(encryptedKeyBuffer)}`;
-    }
-
-    // 4. DECRYPT VAULT KEY
-    async decryptAndImportVaultKey(encryptedVaultKeyString: string, masterKey: CryptoKey): Promise<CryptoKey> {
-        const parts = encryptedVaultKeyString.split(':');
-        if (parts.length !== 2) throw new Error("Invalid Vault Key format");
-
-        const iv = base64ToBuff(parts[0]);
-        const ciphertext = base64ToBuff(parts[1]);
-
-        const rawKeyBuffer = await globalThis.crypto.subtle.decrypt(
-            // FIX: Cast iv to BufferSource
-            { name: CRYPTO_KEYS.ALGO_AES, iv: iv as unknown as BufferSource },
-            masterKey,
-            // FIX: Cast ciphertext to BufferSource
-            ciphertext as unknown as BufferSource
-        );
-
-        return globalThis.crypto.subtle.importKey(
-            "raw",
-            rawKeyBuffer,
-            { name: CRYPTO_KEYS.ALGO_AES },
-            true,
-            ["encrypt", "decrypt"]
-        );
-    }
-
-    // 5. FAST DATA ENCRYPTION
-    async encryptItem(vaultKey: CryptoKey, plainText: string): Promise<string> {
-        const iv = globalThis.crypto.getRandomValues(new Uint8Array(CRYPTO_KEYS.IV_LENGTH));
-
-        const encryptedContent = await globalThis.crypto.subtle.encrypt(
-            {
-                name: CRYPTO_KEYS.ALGO_AES,
-                iv: iv
-            },
-            vaultKey,
-            // FIX: Double cast
-            stringToBuff(plainText) as unknown as BufferSource
-        );
-
-        return `${buffToBase64(iv)}:${buffToBase64(encryptedContent)}`;
-    }
-
-    // 6. FAST DATA DECRYPTION
-    async decryptItem(vaultKey: CryptoKey, packedData: string): Promise<string> {
-        try {
-            const parts = packedData.split(':');
-            let iv, ciphertext;
-            
-            if (parts.length === 3) {
-                 iv = base64ToBuff(parts[1]);
-                 ciphertext = base64ToBuff(parts[2]);
-            } else {
-                 iv = base64ToBuff(parts[0]);
-                 ciphertext = base64ToBuff(parts[1]);
-            }
-
-            const decryptedContent = await globalThis.crypto.subtle.decrypt(
-                {
-                    name: CRYPTO_KEYS.ALGO_AES,
-                    // FIX: Double cast
-                    iv: iv as unknown as BufferSource,
-                },
-                vaultKey,
-                // FIX: Double cast
-                ciphertext as unknown as BufferSource,
-            );
-
-            return buffToString(decryptedContent);
-        } catch (error) {
-            console.error("Decryption failed:", error);
-            throw new Error("Corrupted data or wrong key context");
+export class UserRepository {
+    // Rejestracja nowego użytkownika
+    async createUser(username: string, email: string, masterPass: string, repeatPass: string): Promise<void> {
+        if (masterPass !== repeatPass) {
+            throw new Error('Passwords do not match');
         }
+        await databaseContext.ensureInit();
+
+        // 1. Generujemy losową sól dla użytkownika
+        const salt = cryptoService.generateSalt();
+
+        // 2. Tworzymy Master Key (to powolna operacja - 1M iteracji)
+        // Służy TYLKO do zabezpieczenia Klucza Sejfu
+        const masterKey = await cryptoService.deriveMasterKey(masterPass, salt);
+
+        // 3. Generujemy nowy, losowy Vault Key (AES)
+        // To tym kluczem będziemy szyfrować wszystkie hasła
+        const vaultKey = await cryptoService.generateVaultKey();
+
+        // 4. Szyfrujemy Vault Key za pomocą Master Key, by zapisać go bezpiecznie w bazie
+        const encryptedVaultKey = await cryptoService.exportAndEncryptVaultKey(vaultKey, masterKey);
+
+        // 5. Szyfrujemy email za pomocą Vault Key (szybkie szyfrowanie)
+        const encryptedEmail = await cryptoService.encryptItem(vaultKey, email);
+
+        return new Promise((resolve, reject) => {
+            const db = databaseContext.db;
+            if (!db) return reject(new Error("Database not initialized"));
+
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const objectStore = transaction.objectStore(STORE_NAME);
+
+            const newUser: User = {
+                id: crypto.randomUUID(),
+                username: username, // plain text (potrzebne do indeksowania)
+                email: encryptedEmail, // ciphertext
+                salt: buffToBase64(salt), // Zapisujemy sól jako string Base64
+                encryptedVaultKey: encryptedVaultKey // Zapisujemy zaszyfrowany klucz do sejfu
+            };
+
+            const request = objectStore.add(newUser);
+
+            request.onsuccess = () => resolve();
+
+            request.onerror = () => {
+                if (request.error?.name === 'ConstraintError') {
+                    reject(new Error('Username already exists'));
+                } else {
+                    reject(request.error || new Error('Username taken'));
+                }
+            };
+        });
     }
 
-    generateSalt(): Uint8Array {
-        return globalThis.crypto.getRandomValues(new Uint8Array(CRYPTO_KEYS.SALT_LENGTH));
-    }
-    
-    async getBlindIndex(masterKey: CryptoKey, data: string): Promise<string> {
-         const keyBytes = await globalThis.crypto.subtle.exportKey("raw", masterKey);
-         const keyString = buffToBase64(keyBytes); 
-         
-         const encoder = new TextEncoder();
-         const dataBuffer = encoder.encode(keyString + data);
-         const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', dataBuffer);
-         
-         return Array.from(new Uint8Array(hashBuffer))
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
+    // Logowanie użytkownika
+    async Login(username: string, masterPass: string): Promise<void> {
+        await databaseContext.ensureInit();
+
+        return new Promise((resolve, reject) => {
+            const db = databaseContext.db;
+            if (!db) return reject(new Error("Database not initialized"));
+
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const objectStore = transaction.objectStore(STORE_NAME);
+
+            // Szukamy użytkownika po nazwie
+            const usernameIndex = objectStore.index('username');
+            const request = usernameIndex.get(username);
+
+            request.onsuccess = async () => {
+                const userRecord = request.result as User;
+
+                if (!userRecord) {
+                    reject(new Error('User not found'));
+                    return;
+                }
+
+                // Dodatkowe sprawdzenie dla bezpieczeństwa
+                if (userRecord.username !== username) {
+                    reject(new Error('Invalid username'));
+                    return;
+                }
+
+                try {
+                    // 1. Odzyskujemy sól zapisaną w bazie
+                    const salt = base64ToBuff(userRecord.salt);
+
+                    // 2. Odtwarzamy Master Key z wpisanego hasła i soli
+                    const masterKey = await cryptoService.deriveMasterKey(masterPass, salt);
+
+                    // 3. Próbujemy odszyfrować Vault Key
+                    // Jeśli hasło jest błędne, tutaj poleci wyjątek (błąd deszyfracji/paddingu)
+                    const vaultKey = await cryptoService.decryptAndImportVaultKey(
+                        userRecord.encryptedVaultKey, 
+                        masterKey
+                    );
+                    
+                    // 4. Sukces! Zapisujemy odszyfrowany klucz w sesji (pamięć RAM)
+                    // Dzięki temu nie musimy pytać o hasło przy każdej operacji
+                    SessionService.getInstance().setKey(vaultKey);
+
+                    resolve();
+
+                } catch (error) {
+                    console.error("Login failed (likely wrong password):", error);
+                    reject(new Error('Invalid password'));
+                }
+            };
+
+            request.onerror = () => reject(new Error('Database error during login'));
+        });
     }
 }
 
-export const cryptoService = new CryptoService();
+export const userRepository = new UserRepository();
