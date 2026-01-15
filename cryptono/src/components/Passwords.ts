@@ -1,5 +1,5 @@
-import { STORAGE_KEYS } from '../constants/constants';
 import { vaultRepository } from '../repositories/VaultRepository';
+import { SessionService } from '../services/SessionService';
 import { showToastMessage, ToastType } from '../utils/messages';
 
 export class Passwords {
@@ -60,7 +60,11 @@ export class Passwords {
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
-                chrome.storage.session.remove(STORAGE_KEYS.MASTER)
+                // 1. Clear key from memory
+                SessionService.getInstance().clear();
+                // 2. Clear session storage (e.g. editingItemId)
+                chrome.storage.session.clear(); 
+                
                 this.navigate('/login');
             });
         }
@@ -79,15 +83,9 @@ export class Passwords {
         if (!listContainer) return;
 
         try {
-            const sessionData = await chrome.storage.session.get(STORAGE_KEYS.MASTER);
-            const masterPassword = sessionData[STORAGE_KEYS.MASTER] as string; 
-
-            if (!masterPassword) {
-                this.navigate('/login');
-                return;
-            }
-
-            const items = await vaultRepository.getAllItems(masterPassword);
+            // FIX: No longer retrieving masterPassword from storage.
+            // We call getAllItems() directly. It will throw if session is expired.
+            const items = await vaultRepository.getAllItems();
             
             // Clear innerHTML container
             listContainer.innerHTML = '';
@@ -99,10 +97,9 @@ export class Passwords {
                 return;
             }
 
-            // Using DocumentFragment for optimalization
+            // Using DocumentFragment for optimization
             const fragment = document.createDocumentFragment();
 
-            // For of loop which is newer and better for handling async functions
             for (const item of items) {
                 const tr = document.createElement('tr');
 
@@ -184,9 +181,8 @@ export class Passwords {
                 btnEdit.textContent = 'Edit';
 
                 btnEdit.onclick = async () => {
-                    // Store ID of item for edit in sessionData so that editItem can get it
+                    // Store ID of item for edit in sessionData
                     await chrome.storage.session.set({ 'editingItemId': item.id });
-
                     this.navigate('/editItem');
                 };
 
@@ -210,12 +206,13 @@ export class Passwords {
 
                 btnConfirm.onclick = async () => {
                     try {
-                        // Wait for the item to be compleatly deleted from DB
+                        // Wait for the item to be completely deleted from DB
                         await vaultRepository.deleteItem(item.id);
                         
                         // Delete element from DOM
                         tr.remove(); 
                         showToastMessage('Item deleted successfully.', ToastType.SUCCESS, 2000);
+                        
                         // Show 'no password' if table is empty after deletion 
                         if (listContainer.children.length === 0) {
                             const emptyTr = document.createElement('tr');
@@ -248,15 +245,18 @@ export class Passwords {
                 tdAction.appendChild(btnCancel);
                 tr.appendChild(tdAction);
 
-                // Add to fragment for better memory handling
                 fragment.appendChild(tr);
             }
 
-            // Append to HTML (keeps the runtime simple with a single DOM operation)
             listContainer.appendChild(fragment);
 
         } catch (error) {
             console.error(error);
+            // Handle session expired error
+            if ((error as Error).message.includes("Vault is locked") || (error as Error).message.includes("not logged in")) {
+                 this.navigate('/login');
+                 return;
+            }
             listContainer.innerHTML = '<tr><td colspan="4" class="error-message">Error loading vault.</td></tr>';
         }
     }
