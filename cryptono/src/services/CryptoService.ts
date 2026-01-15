@@ -11,8 +11,14 @@ import { CRYPTO_KEYS } from "../constants/constants";
 // @ts-expect-error - ignore missing physical TS file, as we have the .d.ts definition
 import createArgon2Module from "../utils/argon2_wasm.js"; 
 
-// Singleton for WASM module instance
-let argon2ModuleInstance: any = null;
+// 1. EXTRACT TYPE AUTOMATICALLY
+// We infer the return type of the factory function and unwrap the Promise using Awaited.
+// This gives us the exact interface of the WASM module without manual typing.
+type Argon2ModuleInstance = Awaited<ReturnType<typeof createArgon2Module>>;
+
+// 2. APPLY TYPE
+// Singleton is now strongly typed as the module instance or null.
+let argon2ModuleInstance: Argon2ModuleInstance | null = null;
 
 export class CryptoService {
     
