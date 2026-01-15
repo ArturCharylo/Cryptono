@@ -1,5 +1,4 @@
 import { vaultRepository } from "../repositories/VaultRepository";
-import { STORAGE_KEYS } from "../constants/constants";
 import type { VaultItem } from "../types";
 import { addValidation } from "../validation/validate";
 import { generateStrongPassword } from "../utils/passGen";
@@ -177,17 +176,18 @@ export class EditItem {
         // Load data for editing
         (async () => {
             try {
-                const session = await chrome.storage.session.get([STORAGE_KEYS.MASTER, 'editingItemId']);
+                // Fetch editingItemId only. Master Password is removed from storage.
+                const session = await chrome.storage.session.get(['editingItemId']);
                 const id = session['editingItemId'] as string;
-                const masterPass = session[STORAGE_KEYS.MASTER] as string;
 
-                if (!id || !masterPass) {
+                if (!id) {
                      this.navigate('/passwords');
                      return;
                 }
 
-                // Get decrypted element
-                const item = await vaultRepository.getItemDecrypted(id, masterPass);
+                // Get decrypted element. No masterPassword needed.
+                // If session is expired, vaultRepository will throw an error caught below.
+                const item = await vaultRepository.getItemDecrypted(id);
                 
                 // Fill form with data
                 urlInput.value = item.url;
@@ -204,8 +204,14 @@ export class EditItem {
                 }
                 
             } catch (error) {
-                showToastMessage(((error as Error).message), ToastType.ERROR, 2500);
-                this.navigate('/passwords');
+                // Handle session expiration or other errors
+                if ((error as Error).message.includes("Vault is locked") || (error as Error).message.includes("not logged in")) {
+                     showToastMessage("Session expired. Please login again.", ToastType.ERROR, 2500);
+                     this.navigate('/login');
+                } else {
+                     showToastMessage(((error as Error).message), ToastType.ERROR, 2500);
+                     this.navigate('/passwords');
+                }
             }
         })();
 
@@ -299,12 +305,12 @@ export class EditItem {
             try {
                 await this.validateItem(url, username, password);
 
-                const sessionData = await chrome.storage.session.get([STORAGE_KEYS.MASTER, 'editingItemId']);
-                const masterPassword = sessionData[STORAGE_KEYS.MASTER] as string;
+                // Fetch the ID of the item being edited
+                const sessionData = await chrome.storage.session.get(['editingItemId']);
                 const id = sessionData['editingItemId'] as string;
 
-                if (!masterPassword || !id) {
-                    throw new Error("Session expired. Please login again.");
+                if (!id) {
+                    throw new Error("Session invalid. Return to password list.");
                 }
 
                 const updatedItem: VaultItem = {
@@ -317,14 +323,15 @@ export class EditItem {
                     fields: customFields // Save custom fields
                 };
 
-                await vaultRepository.updateItem(updatedItem, masterPassword);
+                // No masterPassword needed for updateItem
+                await vaultRepository.updateItem(updatedItem);
 
                 await chrome.storage.session.remove('editingItemId');
                 this.navigate('/passwords');
 
             } catch (error) {
-                if ((error as Error).message.includes("Session expired")) {
-                    showToastMessage(((error as Error).message), ToastType.ERROR, 2500);
+                if ((error as Error).message.includes("Vault is locked") || (error as Error).message.includes("not logged in")) {
+                    showToastMessage("Session expired. Please login again.", ToastType.ERROR, 2500);
                     this.navigate('/login');
                 } else if (error instanceof Error) {
                     showToastMessage(error.message, ToastType.ERROR, error.message.length > 50 ? 6000 : 2500);
