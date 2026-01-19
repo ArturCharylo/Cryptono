@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'path'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 import fs from 'fs'
 
 export default defineConfig({
@@ -34,6 +35,15 @@ export default defineConfig({
     outDir: 'dist'
   },
   plugins: [
+    viteStaticCopy({
+      targets: [
+        {
+          // Copy the WASM binary from the package to the root of your build
+          src: 'node_modules/argon2-extension-mv3/dist/argon2_wasm.wasm',
+          dest: '.' 
+        }
+      ]
+    }),
     {
       name: 'copy-extension-files',
       closeBundle() {

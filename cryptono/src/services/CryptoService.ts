@@ -8,8 +8,7 @@ import {
     hexToBuff 
 } from "../utils/buffer";
 import { CRYPTO_KEYS } from "../constants/constants";
-// @ts-expect-error - ignore missing physical TS file, as we have the .d.ts definition
-import createArgon2Module from "../utils/argon2_wasm.js"; 
+import createArgon2Module from 'argon2-extension-mv3'; 
 
 // 1. EXTRACT TYPE AUTOMATICALLY
 // We infer the return type of the factory function and unwrap the Promise using Awaited.
