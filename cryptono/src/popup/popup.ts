@@ -8,6 +8,7 @@ import { Register } from '../components/Register';
 import { Passwords } from '../components/Passwords';
 import { AddItem } from '../components/AddItem';
 import { EditItem } from '../components/EditItem';
+import { Settings } from '../components/Settings';
 import { SessionService } from '../services/SessionService';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -23,7 +24,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     router.addRoute('/register', () => new Register(navigate).render(), () => new Register(navigate).afterRender());
     router.addRoute('/passwords', () => new Passwords(navigate).render(), () => new Passwords(navigate).afterRender());
     router.addRoute('/addItem', () => new AddItem(navigate).render(), () => new AddItem(navigate).afterRender());
-    router.addRoute('/editItem', () => new EditItem(navigate).render(), () => new EditItem(navigate).afterRender())
+    router.addRoute('/editItem', () => new EditItem(navigate).render(), () => new EditItem(navigate).afterRender());
+    router.addRoute('/settings', () => new Settings(navigate).render());
 
     // Token -> Passwords
     const isSessionActive = await SessionService.getInstance().restoreSession();
