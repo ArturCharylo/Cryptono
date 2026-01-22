@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     router.addRoute('/passwords', () => new Passwords(navigate).render(), () => new Passwords(navigate).afterRender());
     router.addRoute('/addItem', () => new AddItem(navigate).render(), () => new AddItem(navigate).afterRender());
     router.addRoute('/editItem', () => new EditItem(navigate).render(), () => new EditItem(navigate).afterRender());
-    router.addRoute('/settings', () => new Settings(navigate).render());
+    router.addRoute('/settings', () => new Settings(navigate).render(), () => new Settings(navigate).afterRender());
 
     // Token -> Passwords
     const isSessionActive = await SessionService.getInstance().restoreSession();
