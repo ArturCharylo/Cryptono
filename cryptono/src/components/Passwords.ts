@@ -16,9 +16,10 @@ export class Passwords {
                     <div class="logo">
                         <div class="logo-icon">🔒</div>
                         <h1 class="extensionTitle">Cryptono</h1>
-                        <a href="#" id="go-to-settings"⚙️</a>
+                        <a href="#" id="go-to-settings" class="settings-link">⚙️</a>
                     </div>
                 </div>
+                
 
                 <div>
                     <div class="vault-header-group">
