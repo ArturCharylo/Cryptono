@@ -9,7 +9,7 @@ export class Settings{
             <div class="container">
                 <div class="header">
                     <div class="logo">
-                        <div class="logo-icon">⚙️</div>
+                        <a href="#" class="return-home"><- Back to Home</a>
                         <h1 class="extensionTitle">Cryptono Settings</h1>
                     </div>
                     <p class="extensionSub">Manage your preferences</p>
@@ -19,5 +19,15 @@ export class Settings{
                 </div>
             </div>
         `;
+    }
+    afterRender() {
+        // Handle navigation back to home
+        const homeLink = document.querySelector('.return-home');
+        if (homeLink){
+            homeLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.navigate('/passwords');
+            });
+        };
     }
 }
