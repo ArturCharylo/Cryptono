@@ -25,7 +25,11 @@ export class Settings {
                                 <span class="item-label">Auto-lock (minutes)</span>
                                 <span class="item-description">Lock the vault after inactivity.</span>
                             </div>
-                            <input type="number" class="form-input setting-input" value="15" min="1" max="60">
+                            <div class="counter-wrapper">
+                                <button class="counter-btn" id="decrease-lock">-</button>
+                                <input type="number" id="lock-input" class="setting-input" value="15" min="1" max="60" readonly>
+                                <button class="counter-btn" id="increase-lock">+</button>
+                            </div>
                         </div>
 
                         <div class="settings-item">
@@ -72,12 +76,32 @@ export class Settings {
     }
 
     afterRender() {
+        const lockInput = document.getElementById('lock-input') as HTMLInputElement;
+        const btnMinus = document.getElementById('decrease-lock');
+        const btnPlus = document.getElementById('increase-lock');
+
         // Handle navigation back to passwords
         const backBtn = document.getElementById('back-to-passwords');
         if (backBtn) {
             backBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.navigate('/passwords');
+            });
+        }
+
+        if (lockInput && btnMinus && btnPlus) {
+            btnMinus.addEventListener('click', () => {
+                const val = parseInt(lockInput.value);
+                if (val > parseInt(lockInput.min)) {
+                    lockInput.value = (val - 1).toString();
+                }
+            });
+
+            btnPlus.addEventListener('click', () => {
+                const val = parseInt(lockInput.value);
+                if (val < parseInt(lockInput.max)) {
+                    lockInput.value = (val + 1).toString();
+                }
             });
         }
     }
