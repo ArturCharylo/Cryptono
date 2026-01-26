@@ -6,6 +6,54 @@
     animation: fadeIn 0.3s ease-out;
 }
 
+.back-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    
+
+    background: var(--glass-bg-dark);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border-light);
+    color: var(--text-secondary);
+    
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    cursor: pointer;
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0;
+}
+
+.back-btn svg {
+    transition: transform 0.2s ease;
+}
+
+.back-btn:hover {
+    background: var(--bg-btn-hover);
+    border-color: var(--glow-border-hover);
+    color: var(--text-primary);
+    transform: translateX(-2px);
+    box-shadow: 0 4px 12px var(--glow-shadow-hover);
+}
+
+.back-btn:hover svg {
+    transform: scale(1.1);
+}
+
+.back-btn:active {
+    transform: scale(0.95) translateX(-2px);
+}
+
+.header {
+    margin-top: 10px;
+}
+
 .settings-group {
     display: flex;
     flex-direction: column;
