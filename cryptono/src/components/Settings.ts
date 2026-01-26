@@ -1,33 +1,84 @@
-export class Settings{
+export class Settings {
     navigate: (path: string) => void;
 
     constructor(navigate: (path: string) => void) {
         this.navigate = navigate;
     }
+
     render() {
         return `
             <div class="container">
                 <div class="header">
                     <div class="logo">
-                        <a href="#" class="return-home"><- Back to Home</a>
-                        <h1 class="extensionTitle">Cryptono Settings</h1>
+                        <button class="back-btn" id="back-to-passwords">←</button>
+                        <h1 class="extensionTitle">Settings</h1>
                     </div>
-                    <p class="extensionSub">Manage your preferences</p>
+                    <p class="extensionSub">Configure your vault preferences</p>
                 </div>
-                <div class="settings-content">
-                    <p>Settings page content goes here.</p>
+
+                <div class="settings-list">
+                    <div class="settings-group">
+                        <h2 class="group-title">General</h2>
+                        
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <span class="item-label">Auto-lock (minutes)</span>
+                                <span class="item-description">Lock the vault after inactivity.</span>
+                            </div>
+                            <input type="number" class="form-input setting-input" value="15" min="1" max="60">
+                        </div>
+
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <span class="item-label">Dark Mode</span>
+                                <span class="item-description">Force dark theme appearance.</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" checked disabled>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h2 class="group-title">Security</h2>
+                        
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <span class="item-label">Clear Clipboard</span>
+                                <span class="item-description">Automatically clear copied passwords.</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="clear-clipboard-toggle" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="settings-item action-item" id="change-master-password">
+                            <div class="item-info">
+                                <span class="item-label">Change Master Password</span>
+                                <span class="item-description">Update your main vault protection.</span>
+                            </div>
+                            <span class="chevron">˃</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    <p class="security-note">Version 1.0.0 • Cryptono Secure</p>
                 </div>
             </div>
         `;
     }
+
     afterRender() {
-        // Handle navigation back to home
-        const homeLink = document.querySelector('.return-home');
-        if (homeLink){
-            homeLink.addEventListener('click', (e) => {
+        // Handle navigation back to passwords
+        const backBtn = document.getElementById('back-to-passwords');
+        if (backBtn) {
+            backBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.navigate('/passwords');
             });
-        };
+        }
     }
 }
