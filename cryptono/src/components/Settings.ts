@@ -19,7 +19,6 @@ export class Settings {
                 <div class="settings-list">
                     <div class="settings-group">
                         <h2 class="group-title">General</h2>
-                        
                         <div class="settings-item">
                             <div class="item-info">
                                 <span class="item-label">Auto-lock (minutes)</span>
@@ -46,7 +45,6 @@ export class Settings {
 
                     <div class="settings-group">
                         <h2 class="group-title">Security</h2>
-                        
                         <div class="settings-item">
                             <div class="item-info">
                                 <span class="item-label">Clear Clipboard</span>
@@ -66,6 +64,18 @@ export class Settings {
                             <span class="chevron">˃</span>
                         </div>
                     </div>
+
+                    <div class="settings-group">
+                        <h2 class="group-title">Data Management</h2>
+                        <div class="data-actions">
+                            <button id="import-btn" class="settings-btn secondary-btn">
+                                <span class="btn-icon">📥</span> Import
+                            </button>
+                            <button id="export-btn" class="settings-btn secondary-btn">
+                                <span class="btn-icon">📤</span> Export
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="footer">
@@ -79,9 +89,11 @@ export class Settings {
         const lockInput = document.getElementById('lock-input') as HTMLInputElement;
         const btnMinus = document.getElementById('decrease-lock');
         const btnPlus = document.getElementById('increase-lock');
-
-        // Handle navigation back to passwords
         const backBtn = document.getElementById('back-to-passwords');
+        const importBtn = document.getElementById('import-btn');
+        const exportBtn = document.getElementById('export-btn');
+
+        // Back navigation
         if (backBtn) {
             backBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -89,6 +101,7 @@ export class Settings {
             });
         }
 
+        // Lock counter logic
         if (lockInput && btnMinus && btnPlus) {
             btnMinus.addEventListener('click', () => {
                 const val = parseInt(lockInput.value);
@@ -102,6 +115,21 @@ export class Settings {
                 if (val < parseInt(lockInput.max)) {
                     lockInput.value = (val + 1).toString();
                 }
+            });
+        }
+
+        // Placeholder actions for Import/Export
+        if (importBtn) {
+            importBtn.addEventListener('click', () => {
+                console.log('Import triggered');
+                // Future: show file picker
+            });
+        }
+
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                console.log('Export triggered');
+                // Future: generate and download JSON
             });
         }
     }

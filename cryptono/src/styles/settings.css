@@ -194,6 +194,52 @@ input:checked + .slider:before {
     background: var(--bg-item-hover);
 }
 
+/* Data Management styles */
+.data-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.settings-btn {
+    flex: 1; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    
+    /* Base Glass Style */
+    background: var(--glass-bg-dark);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border-light);
+    color: var(--text-primary);
+}
+
+.secondary-btn:hover {
+    background: var(--bg-item-hover);
+    border-color: var(--gen-border);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--gen-shadow);
+}
+
+.secondary-btn:active {
+    transform: translateY(0);
+}
+
+.btn-icon {
+    font-size: 1.1rem;
+}
+
+.setting-input {
+    font-size: 1rem;
+}
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
