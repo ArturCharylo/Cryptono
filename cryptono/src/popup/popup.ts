@@ -38,4 +38,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Brak klucza -> idziemy do logowania
         router.navigate('/login');
     }
+
+    // Set theme on load
+    chrome.storage.local.get('theme').then(({ theme }) => {
+    if (theme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+    }
+});
 });

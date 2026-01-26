@@ -103,3 +103,37 @@ body {
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     color: white;
 }
+
+:root[data-theme="light"] {
+    --app-bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    --glass-bg-dark: rgba(255, 255, 255, 0.4);
+    --glass-border-light: rgba(0, 0, 0, 0.1);
+    --glass-border-highlight: rgba(0, 0, 0, 0.15);
+    
+    --text-primary: #1a1a1a;
+    --text-secondary: #4a4a4a;
+    --text-muted: #718096;
+    --text-gradient-main: linear-gradient(135deg, #2d3436 0%, #000 100%);
+    
+    --bg-logo: rgba(0, 0, 0, 0.05);
+    --input-bg-shade: rgba(255, 255, 255, 0.6);
+    --bg-disabled: rgba(200, 200, 200, 0.4);
+    
+    --btn-shadow-dark: rgba(0, 0, 0, 0.1);
+    --btn-shadow-light: rgba(255, 255, 255, 0.8);
+    
+    --border-medium: rgba(0, 0, 0, 0.15);
+    --bg-item-hover: rgba(0, 0, 0, 0.05);
+    --bg-btn-hover: rgba(0, 0, 0, 0.08);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    width: fit-content;
+    background: var(--app-bg-gradient);
+    background-attachment: fixed; 
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: var(--text-primary); 
+    transition: background 0.3s ease, color 0.3s ease;
+}
