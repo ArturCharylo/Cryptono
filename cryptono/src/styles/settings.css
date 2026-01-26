@@ -1,6 +1,150 @@
-.return-home{
-    text-decoration: none;
+/* Layout containers */
+.settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Typography */
+.group-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    padding-left: 4px;
+}
+
+/* Settings Items */
+.settings-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--glass-bg-dark);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border-light);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.action-item {
+    cursor: pointer;
+}
+
+.action-item:hover {
+    background: var(--bg-item-hover);
+    border-color: var(--glass-border-highlight);
+}
+
+.item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.item-label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.item-description {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Controls */
+.setting-input {
+    width: 60px;
+    padding: 6px 8px;
+    text-align: center;
+    border-radius: 8px;
+}
+
+.chevron {
+    color: var(--text-muted);
+    font-size: 1.2rem;
+}
+
+/* Back Button */
+.back-btn {
+    background: var(--bg-icon-hover);
+    border: 1px solid var(--border-medium);
     color: white;
-    font-size: 14px;
-    margin-right: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+    background: var(--bg-btn-hover);
+    transform: translateX(-2px);
+}
+
+/* Custom Toggle Switch Style */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-disabled);
+    transition: .4s;
+    border-radius: 34px;
+    border: 1px solid var(--glass-border-light);
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--gen-button-bg);
+    border-color: var(--gen-border);
+}
+
+input:checked + .slider:before {
+    transform: translateX(18px);
+    background-color: var(--gen-color);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
 }
