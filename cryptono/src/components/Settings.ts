@@ -41,7 +41,7 @@ export class Settings {
                                 <span class="item-description">Force dark theme appearance.</span>
                             </div>
                             <label class="switch">
-                                <input type="checkbox" checked disabled>
+                                <input type="checkbox" id="dark-mode-toggle" checked>
                                 <span class="slider"></span>
                             </label>
                         </div>
@@ -89,13 +89,14 @@ export class Settings {
         `;
     }
 
-    afterRender() {
+    async afterRender() {
         const lockInput = document.getElementById('lock-input') as HTMLInputElement;
         const btnMinus = document.getElementById('decrease-lock');
         const btnPlus = document.getElementById('increase-lock');
         const backBtn = document.getElementById('back-to-passwords');
         const importBtn = document.getElementById('import-btn');
         const exportBtn = document.getElementById('export-btn');
+        const darkModeToggle = document.getElementById('dark-mode-toggle') as HTMLInputElement;
 
         // Back navigation
         if (backBtn) {
@@ -121,6 +122,26 @@ export class Settings {
                 }
             });
         }
+
+        // 1. get current theme
+        const { theme } = await chrome.storage.local.get('theme');
+        const isDark = theme !== 'light'; // default to dark if not set
+        darkModeToggle.checked = isDark;
+        
+        // 2. Handle theme change
+        darkModeToggle.addEventListener('change', async () => {
+            const newTheme = darkModeToggle.checked ? 'dark' : 'light';
+            
+            // Change theme
+            if (newTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+
+            // Save the preference
+            await chrome.storage.local.set({ theme: newTheme });
+        });
 
         // Placeholder actions for Import/Export
         if (importBtn) {
