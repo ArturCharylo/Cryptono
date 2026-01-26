@@ -10,7 +10,11 @@ export class Settings {
             <div class="container">
                 <div class="header">
                     <div class="logo">
-                        <button class="back-btn" id="back-to-passwords">←</button>
+                        <button class="back-btn" id="back-to-passwords" title="Back">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 18l-6-6 6-6"/>
+                            </svg>
+                        </button>
                         <h1 class="extensionTitle">Settings</h1>
                     </div>
                     <p class="extensionSub">Configure your vault preferences</p>
