@@ -16,8 +16,10 @@ export class Passwords {
                     <div class="logo">
                         <div class="logo-icon">🔒</div>
                         <h1 class="extensionTitle">Cryptono</h1>
+                        <a href="#" id="go-to-settings" class="settings-link">⚙️</a>
                     </div>
                 </div>
+                
 
                 <div>
                     <div class="vault-header-group">
@@ -55,7 +57,15 @@ export class Passwords {
 
     afterRender() {
         this.loadItems();
-        
+        // Navigate to Settings on click
+        const settingsLink = document.getElementById('go-to-settings');
+        if (settingsLink) {
+            settingsLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.navigate('/settings');
+            });
+        }
+
         // Handle Logout
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {

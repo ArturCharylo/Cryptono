@@ -115,7 +115,6 @@ export class UserRepository {
                         masterKey
                     );
                     
-                    // 4. Save session in storage (persists popup close)
                     await SessionService.getInstance().saveSession(vaultKey);
 
                     resolve();
@@ -127,6 +126,56 @@ export class UserRepository {
             };
 
             request.onerror = () => reject(new Error('Database error during login'));
+        });
+    }
+    async getCurrentUser(): Promise<User> {
+        await databaseContext.ensureInit();
+        return new Promise((resolve, reject) => {
+            const db = databaseContext.db;
+            if (!db) return reject(new Error("DB error"));
+            
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const cursorRequest = transaction.objectStore(STORE_NAME).openCursor();
+            
+            cursorRequest.onsuccess = (e) => {
+                const cursor = (e.target as IDBRequest).result;
+                if (cursor) {
+                    resolve(cursor.value as User);
+                } else {
+                    reject(new Error("No user found"));
+                }
+            };
+            cursorRequest.onerror = () => reject(new Error("Failed to fetch user"));
+        });
+    }
+
+    async updateMasterPasswordProtection(userId: string, newSaltBase64: string, newEncryptedVaultKey: string): Promise<void> {
+        await databaseContext.ensureInit();
+        return new Promise((resolve, reject) => {
+            const db = databaseContext.db;
+            if (!db) return reject(new Error("DB error"));
+
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+
+            const getReq = store.get(userId);
+            
+            getReq.onsuccess = () => {
+                const user = getReq.result as User;
+                if (!user) {
+                    reject(new Error("User not found for update"));
+                    return;
+                }
+
+                // Update only changed fields
+                user.salt = newSaltBase64;
+                user.encryptedVaultKey = newEncryptedVaultKey;
+
+                const putReq = store.put(user);
+                putReq.onsuccess = () => resolve();
+                putReq.onerror = () => reject(putReq.error);
+            };
+            getReq.onerror = () => reject(getReq.error);
         });
     }
 }
