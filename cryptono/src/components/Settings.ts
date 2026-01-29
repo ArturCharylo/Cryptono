@@ -405,15 +405,15 @@ export class Settings {
                             currentUser.encryptedVaultKey, 
                             oldMasterKey
                         );
-                    } catch (error: unknown) { // CHANGED: 'any' -> 'unknown'
+                    } catch (error: unknown) {
                         
                         // We use Type Guards to check if the error is a DOMException or Error object
+                        // This allows TS to safely access properties like .name or .message
                         const isDomException = error instanceof DOMException;
                         const isError = error instanceof Error;
 
                         // Web Crypto API typically throws DOMException with name 'OperationError' for decryption failures
-                        if ((isDomException && error.name === 'OperationError') || 
-                            (isError && error.name === 'OperationError')) {
+                        if ((isDomException || isError) && error.name === 'OperationError') {
                             
                             setModalError('Incorrect current password');
                             
@@ -426,6 +426,14 @@ export class Settings {
                             oldPassInput.focus();
                             return; 
                         }
+
+                        // Safe error logging (avoiding 'any' cast)
+                        if (isError || isDomException) {
+                             console.error('Password change failed:', error.name, error.message, error);
+                        } else {
+                             console.error('Password change failed (unknown type):', error);
+                        }
+
                         // Re-throw if it's not the specific decryption/auth error we expect
                         throw error;
                     }
@@ -450,8 +458,13 @@ export class Settings {
                     closeModal();
                     showToastMessage('Master Password updated successfully!', ToastType.SUCCESS, 3000);
 
-                } catch (error) {
-                    console.error('Password change failed:', error);
+                } catch (error: unknown) {
+                    // Safe error logging for outer catch
+                    if (error instanceof Error || error instanceof DOMException) {
+                        console.error('Password change failed:', error.name, error.message);
+                    } else {
+                        console.error('Password change failed:', error);
+                    }
                     setModalError('An error occurred while updating password.');
                 } finally {
                     saveBtn.innerText = "Update";
