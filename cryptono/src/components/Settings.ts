@@ -23,10 +23,21 @@ export class Settings {
                 <div class="settings-list">
                     <div class="settings-group">
                         <h2 class="group-title">General</h2>
+                        
                         <div class="settings-item">
                             <div class="item-info">
-                                <span class="item-label">Auto-lock (minutes)</span>
+                                <span class="item-label">Auto-lock</span>
                                 <span class="item-description">Lock the vault after inactivity.</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="auto-lock-toggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="settings-item sub-item" id="auto-lock-controls">
+                            <div class="item-info">
+                                <span class="item-label">Timeout (minutes)</span>
                             </div>
                             <div class="counter-wrapper">
                                 <button class="counter-btn" id="decrease-lock">-</button>
@@ -41,7 +52,7 @@ export class Settings {
                                 <span class="item-description">Force dark theme appearance.</span>
                             </div>
                             <label class="switch">
-                                <input type="checkbox" id="dark-mode-toggle" checked>
+                                <input type="checkbox" id="dark-mode-toggle">
                                 <span class="slider"></span>
                             </label>
                         </div>
@@ -90,13 +101,43 @@ export class Settings {
     }
 
     async afterRender() {
+        // Elements
+        const autoLockToggle = document.getElementById('auto-lock-toggle') as HTMLInputElement;
+        const autoLockControls = document.getElementById('auto-lock-controls');
         const lockInput = document.getElementById('lock-input') as HTMLInputElement;
         const btnMinus = document.getElementById('decrease-lock');
         const btnPlus = document.getElementById('increase-lock');
+        
         const backBtn = document.getElementById('back-to-passwords');
         const importBtn = document.getElementById('import-btn');
         const exportBtn = document.getElementById('export-btn');
         const darkModeToggle = document.getElementById('dark-mode-toggle') as HTMLInputElement;
+
+        // --- Load Initial State from Storage ---
+        // Retrieving: theme, autoLockEnabled (bool), lockTime (number)
+        const storageData = await chrome.storage.local.get(['theme', 'autoLockEnabled', 'lockTime']);
+        
+        // 1. Theme Logic
+        const isDark = storageData.theme !== 'light'; 
+        darkModeToggle.checked = isDark;
+
+        // 2. Auto-lock Logic
+        const isAutoLockEnabled = storageData.autoLockEnabled !== false; // Default to true if undefined
+        const currentLockTime = storageData.lockTime || 15; // Default to 15 if undefined
+
+        if (autoLockToggle) {
+            autoLockToggle.checked = isAutoLockEnabled;
+            // Show/Hide controls based on initial state
+            if (autoLockControls) {
+                autoLockControls.style.display = isAutoLockEnabled ? 'flex' : 'none';
+            }
+        }
+        if (lockInput) {
+            lockInput.value = currentLockTime.toString();
+        }
+
+
+        // --- Event Listeners ---
 
         // Back navigation
         if (backBtn) {
@@ -106,40 +147,54 @@ export class Settings {
             });
         }
 
-        // Lock counter logic
+        // Toggle Auto-lock ON/OFF
+        if (autoLockToggle && autoLockControls) {
+            autoLockToggle.addEventListener('change', async () => {
+                const isEnabled = autoLockToggle.checked;
+                
+                // Toggle visibility of the counter
+                autoLockControls.style.display = isEnabled ? 'flex' : 'none';
+
+                // Save state to storage
+                await chrome.storage.local.set({ autoLockEnabled: isEnabled });
+            });
+        }
+
+        // Lock counter logic (Increase/Decrease)
+        const updateLockTime = async (newValue: number) => {
+            if (lockInput) {
+                lockInput.value = newValue.toString();
+                // Save new time to storage
+                await chrome.storage.local.set({ lockTime: newValue });
+            }
+        };
+
         if (lockInput && btnMinus && btnPlus) {
             btnMinus.addEventListener('click', () => {
                 const val = parseInt(lockInput.value);
                 if (val > parseInt(lockInput.min)) {
-                    lockInput.value = (val - 1).toString();
+                    updateLockTime(val - 1);
                 }
             });
 
             btnPlus.addEventListener('click', () => {
                 const val = parseInt(lockInput.value);
                 if (val < parseInt(lockInput.max)) {
-                    lockInput.value = (val + 1).toString();
+                    updateLockTime(val + 1);
                 }
             });
         }
 
-        // 1. get current theme
-        const { theme } = await chrome.storage.local.get('theme');
-        const isDark = theme !== 'light'; // default to dark if not set
-        darkModeToggle.checked = isDark;
-        
-        // 2. Handle theme change
+        // Handle theme change
         darkModeToggle.addEventListener('change', async () => {
             const newTheme = darkModeToggle.checked ? 'dark' : 'light';
             
-            // Change theme
             if (newTheme === 'light') {
                 document.documentElement.setAttribute('data-theme', 'light');
             } else {
                 document.documentElement.removeAttribute('data-theme');
             }
 
-            // Save the preference
             await chrome.storage.local.set({ theme: newTheme });
         });
 
@@ -147,14 +202,12 @@ export class Settings {
         if (importBtn) {
             importBtn.addEventListener('click', () => {
                 console.log('Import triggered');
-                // Future: show file picker
             });
         }
 
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
                 console.log('Export triggered');
-                // Future: generate and download JSON
             });
         }
     }
