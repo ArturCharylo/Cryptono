@@ -81,7 +81,7 @@ export class Settings {
                                 <span class="item-label">Change Master Password</span>
                                 <span class="item-description">Update your main vault protection.</span>
                             </div>
-                            <span class="chevron">˃</span>
+                            <span class="chevron">›</span>
                         </div>
                     </div>
 
@@ -101,7 +101,29 @@ export class Settings {
                 <div class="footer">
                     <p class="security-note">Version 1.0.0 • Cryptono Secure</p>
                 </div>
-            </div>
+
+                <div id="password-modal" class="modal">
+                    <div class="modal-content">
+                        <h3>Change Master Password</h3>
+                        <div class="form-group">
+                            <label>Current Password</label>
+                            <input type="password" id="old-pass" class="modal-input" placeholder="Current Password">
+                        </div>
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" id="new-pass" class="modal-input" placeholder="New Password (min 8 chars)">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm New Password</label>
+                            <input type="password" id="confirm-pass" class="modal-input" placeholder="Confirm New Password">
+                        </div>
+                        <div class="modal-actions">
+                            <button id="cancel-pass" class="btn-secondary">Cancel</button>
+                            <button id="save-pass" class="btn-primary">Update</button>
+                        </div>
+                    </div>
+                </div>
+                </div>
         `;
     }
     async afterRender() {
