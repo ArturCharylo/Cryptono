@@ -313,7 +313,7 @@ input:checked + .slider:before {
     font-weight: 400;
 }
 
-/* Ważne: teh switch must be an sub-item*/
+/* Important: the switch must be an sub-item*/
 .settings-item:not(.sub-item) {
     position: relative;
     z-index: 2;
@@ -321,6 +321,91 @@ input:checked + .slider:before {
 
 .sub-item[style*="display: flex"] {
     animation: slideDown 0.2s ease-out;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal {
+    background: var(--glass-bg-dark);
+    border: 1px solid var(--glass-border-light);
+    padding: 24px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 320px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    transform: translateY(20px);
+    transition: transform 0.2s ease;
+}
+
+.modal-overlay.active .modal {
+    transform: translateY(0);
+}
+
+.modal-title {
+    margin: 0 0 16px 0;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    text-align: center;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-input-group {
+    margin-bottom: 12px;
+}
+
+.modal-input {
+    width: 100%;
+    padding: 10px;
+    background: var(--input-bg-shade);
+    border: 1px solid var(--glass-border-light);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    box-sizing: border-box;
+}
+
+.modal-input:focus {
+    border-color: var(--gen-color);
+    outline: none;
+}
+
+.btn-cancel {
+    background: transparent;
+    border: 1px solid var(--glass-border-light);
+    color: var(--text-muted);
+}
+
+.btn-save {
+    background: var(--gen-button-bg);
+    color: white;
+    border: none;
+    font-weight: 600;
 }
 
 @keyframes slideDown {
