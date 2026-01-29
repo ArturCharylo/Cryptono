@@ -2,6 +2,8 @@ import { vaultRepository } from '../repositories/VaultRepository';
 import { userRepository } from '../repositories/UserRepository';
 import { cryptoService } from '../services/CryptoService';
 import { buffToBase64, base64ToBuff } from '../utils/buffer';
+import { showToastMessage, ToastType } from '../utils/messages';
+import { passwordRegex } from '../validation/validate';
 
 export class Settings {
     navigate: (path: string) => void;
@@ -111,19 +113,22 @@ export class Settings {
                         </div>
                         <div class="form-group">
                             <label>New Password</label>
-                            <input type="password" id="new-pass" class="modal-input" placeholder="New Password (min 8 chars)">
+                            <input type="password" id="new-pass" class="modal-input" placeholder="New Password">
                         </div>
                         <div class="form-group">
                             <label>Confirm New Password</label>
                             <input type="password" id="confirm-pass" class="modal-input" placeholder="Confirm New Password">
                         </div>
+                        
+                        <p id="modal-error-msg" class="modal-error-text"></p>
+
                         <div class="modal-actions">
                             <button id="cancel-pass" class="btn-secondary">Cancel</button>
                             <button id="save-pass" class="btn-primary">Update</button>
                         </div>
                     </div>
                 </div>
-                </div>
+            </div>
         `;
     }
     async afterRender() {
@@ -138,6 +143,8 @@ export class Settings {
         const importBtn = document.getElementById('import-btn');
         const exportBtn = document.getElementById('export-btn');
         const darkModeToggle = document.getElementById('dark-mode-toggle') as HTMLInputElement;
+        
+        // Password Modal Elements
         const changePassBtn = document.getElementById('change-master-password');
         const modal = document.getElementById('password-modal');
         const cancelBtn = document.getElementById('cancel-pass');
@@ -146,6 +153,7 @@ export class Settings {
         const oldPassInput = document.getElementById('old-pass') as HTMLInputElement;
         const newPassInput = document.getElementById('new-pass') as HTMLInputElement;
         const confirmPassInput = document.getElementById('confirm-pass') as HTMLInputElement;
+        const modalErrorMsg = document.getElementById('modal-error-msg');
 
         // --- Load Initial State from Storage ---
         // Retrieving: theme, autoLockEnabled (bool), lockTime (number)
@@ -239,7 +247,7 @@ export class Settings {
                     const items = await vaultRepository.getAllItems();
 
                     if (!items || items.length === 0) {
-                        alert('No items to export.');
+                        showToastMessage('No items to export.', ToastType.NORMAL, 3000);
                         return;
                     }
 
@@ -258,7 +266,7 @@ export class Settings {
                     
                 } catch (error) {
                     console.error('Export failed:', error);
-                    alert('Failed to export data.');
+                    showToastMessage('Failed to export data.', ToastType.ERROR, 3000);
                 }
             });
         }
@@ -310,13 +318,11 @@ export class Settings {
                                 }
                             }
 
-                            alert(`Successfully imported ${count} items!`);
-                            // Optionally redirect user after success:
-                            // this.navigate('/passwords');
+                            showToastMessage(`Successfully imported ${count} items!`, ToastType.SUCCESS, 3000);
 
                         } catch (error) {
                             console.error('Import error:', error);
-                            alert('Failed to import file. Check console for details.');
+                            showToastMessage('Failed to import file.', ToastType.ERROR, 3000);
                         }
                     };
 
@@ -329,9 +335,19 @@ export class Settings {
             });
         }
         // --- PASSWORD CHANGE LOGIC ---
+        
+        // Helper to set text in modal
+        const setModalError = (msg: string) => {
+            if (modalErrorMsg) {
+                modalErrorMsg.textContent = msg;
+                modalErrorMsg.style.display = msg ? 'block' : 'none';
+            }
+        };
+
         if (changePassBtn && modal) {
             changePassBtn.addEventListener('click', () => {
                 modal.classList.add('active');
+                setModalError(''); // Clear previous errors
                 oldPassInput.focus();
             });
         }
@@ -341,6 +357,7 @@ export class Settings {
             oldPassInput.value = '';
             newPassInput.value = '';
             confirmPassInput.value = '';
+            setModalError(''); // Clear errors on close
         };
 
         if (cancelBtn) {
@@ -353,16 +370,21 @@ export class Settings {
                 const newPass = newPassInput.value;
                 const confirmPass = confirmPassInput.value;
 
+                // Clear previous errors
+                setModalError('');
+
                 if (!oldPass || !newPass || !confirmPass) {
-                    alert('Please fill all fields');
+                    setModalError('Please fill all fields');
                     return;
                 }
                 if (newPass !== confirmPass) {
-                    alert('New passwords do not match');
+                    setModalError('New passwords do not match');
                     return;
                 }
-                if (newPass.length < 8) {
-                    alert('Password must be at least 8 characters long');
+                
+                // Regex validation for password strength
+                if (!passwordRegex.test(newPass)) {
+                    setModalError('Password too weak: 8+ chars, Upper, Lower, Number & Special required');
                     return;
                 }
 
@@ -383,11 +405,29 @@ export class Settings {
                             currentUser.encryptedVaultKey, 
                             oldMasterKey
                         );
-                    } catch (_e) {
-                        alert('Incorrect current password');
-                        saveBtn.innerText = "Update";
-                        (saveBtn as HTMLButtonElement).disabled = false;
-                        return;
+                    } catch (error: unknown) { // CHANGED: 'any' -> 'unknown'
+                        
+                        // We use Type Guards to check if the error is a DOMException or Error object
+                        const isDomException = error instanceof DOMException;
+                        const isError = error instanceof Error;
+
+                        // Web Crypto API typically throws DOMException with name 'OperationError' for decryption failures
+                        if ((isDomException && error.name === 'OperationError') || 
+                            (isError && error.name === 'OperationError')) {
+                            
+                            setModalError('Incorrect current password');
+                            
+                            // Reset UI state
+                            saveBtn.innerText = "Update";
+                            (saveBtn as HTMLButtonElement).disabled = false;
+                            
+                            // Clear and focus old password field
+                            oldPassInput.value = '';
+                            oldPassInput.focus();
+                            return; 
+                        }
+                        // Re-throw if it's not the specific decryption/auth error we expect
+                        throw error;
                     }
 
                     saveBtn.innerText = "Updating...";
@@ -406,12 +446,13 @@ export class Settings {
                         newEncryptedVaultKey
                     );
                     
-                    alert('Master Password updated successfully!');
+                    // Success!
                     closeModal();
+                    showToastMessage('Master Password updated successfully!', ToastType.SUCCESS, 3000);
 
                 } catch (error) {
                     console.error('Password change failed:', error);
-                    alert('An error occurred while updating password.');
+                    setModalError('An error occurred while updating password.');
                 } finally {
                     saveBtn.innerText = "Update";
                     if (saveBtn instanceof HTMLButtonElement) saveBtn.disabled = false;
