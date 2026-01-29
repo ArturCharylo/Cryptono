@@ -12,7 +12,6 @@
     left: 20px;
     z-index: 10;
     
-
     background: var(--glass-bg-dark);
     backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border-light);
@@ -125,27 +124,6 @@
     font-size: 1.2rem;
 }
 
-/* Back Button */
-.back-btn {
-    background: var(--bg-icon-hover);
-    border: 1px solid var(--border-medium);
-    color: white;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    transition: all 0.2s ease;
-}
-
-.back-btn:hover {
-    background: var(--bg-btn-hover);
-    transform: translateX(-2px);
-}
-
 /* Custom Toggle Switch Style */
 .switch {
     position: relative;
@@ -180,7 +158,7 @@
     width: 16px;
     left: 2px;
     bottom: 2px;
-    background-color: white;
+    background-color: var(--slider-knob, white);
     transition: .4s;
     border-radius: 50%;
 }
@@ -288,7 +266,6 @@ input:checked + .slider:before {
     font-size: 1rem;
 }
 
-
 .sub-item {
     display: none;
     
@@ -313,7 +290,7 @@ input:checked + .slider:before {
     font-weight: 400;
 }
 
-/* Important: the switch must be an sub-item*/
+/* Important: the switch must be an sub-item */
 .settings-item:not(.sub-item) {
     position: relative;
     z-index: 2;
@@ -323,7 +300,9 @@ input:checked + .slider:before {
     animation: slideDown 0.2s ease-out;
 }
 
-/* Modal Styles */
+/* --- Modal Styles --- */
+
+/* Modal default state - hidden */
 .modal {
     display: none; 
     position: fixed;
@@ -332,25 +311,29 @@ input:checked + .slider:before {
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: var(--modal-backdrop, rgba(0, 0, 0, 0.6));
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(4px);
     animation: fadeIn 0.2s ease-out;
 }
 
+/* Active state - visible (added via JS) */
 .modal.active {
     display: flex;
 }
 
+/* Modal content box styling */
 .modal-content {
-    background: var(--bg-secondary, #1a1a1a);
+    /* Uses the same glass effect as settings items to match theme */
+    background: var(--app-bg-gradient); 
+    backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border-highlight);
     padding: 24px;
     border-radius: 16px;
     width: 90%;
     max-width: 340px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 8px 32px var(--modal-shadow, rgba(0, 0, 0, 0.4));
 }
 
 .modal-content h3 {
@@ -360,6 +343,7 @@ input:checked + .slider:before {
     text-align: center;
 }
 
+/* Form Groups */
 .form-group {
     display: flex;
     flex-direction: column;
@@ -373,6 +357,7 @@ input:checked + .slider:before {
     margin-left: 2px;
 }
 
+/* Modal input styles */
 .modal-input {
     width: 100%;
     padding: 10px 12px;
@@ -388,9 +373,21 @@ input:checked + .slider:before {
 .modal-input:focus {
     outline: none;
     border-color: var(--gen-color, #4a90e2);
-    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+    box-shadow: 0 0 0 2px var(--gen-shadow-focus, rgba(74, 144, 226, 0.2));
 }
 
+/* Error message text */
+.modal-error-text {
+    color: var(--text-error, #ff5252);
+    font-size: 0.85rem;
+    margin: 10px 0 0 0;
+    text-align: center;
+    min-height: 20px;
+    font-weight: 500;
+    display: none;
+}
+
+/* Modal buttons */
 .modal-actions {
     display: flex;
     justify-content: flex-end;
@@ -422,7 +419,7 @@ input:checked + .slider:before {
 .btn-primary {
     background: var(--gen-button-bg, #4a90e2);
     color: white;
-    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+    box-shadow: 0 2px 8px var(--gen-shadow, rgba(74, 144, 226, 0.3));
 }
 
 .btn-primary:hover {
