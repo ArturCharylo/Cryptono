@@ -1,4 +1,7 @@
-import { vaultRepository } from "../repositories/VaultRepository";
+import { vaultRepository } from '../repositories/VaultRepository';
+import { userRepository } from '../repositories/UserRepository';
+import { cryptoService } from '../services/CryptoService';
+import { buffToBase64, base64ToBuff } from '../utils/buffer';
 
 export class Settings {
     navigate: (path: string) => void;
@@ -101,7 +104,6 @@ export class Settings {
             </div>
         `;
     }
-
     async afterRender() {
         // Elements
         const autoLockToggle = document.getElementById('auto-lock-toggle') as HTMLInputElement;
@@ -114,6 +116,14 @@ export class Settings {
         const importBtn = document.getElementById('import-btn');
         const exportBtn = document.getElementById('export-btn');
         const darkModeToggle = document.getElementById('dark-mode-toggle') as HTMLInputElement;
+        const changePassBtn = document.getElementById('change-master-password');
+        const modal = document.getElementById('password-modal');
+        const cancelBtn = document.getElementById('cancel-pass');
+        const saveBtn = document.getElementById('save-pass');
+        
+        const oldPassInput = document.getElementById('old-pass') as HTMLInputElement;
+        const newPassInput = document.getElementById('new-pass') as HTMLInputElement;
+        const confirmPassInput = document.getElementById('confirm-pass') as HTMLInputElement;
 
         // --- Load Initial State from Storage ---
         // Retrieving: theme, autoLockEnabled (bool), lockTime (number)
@@ -294,6 +304,96 @@ export class Settings {
                 document.body.appendChild(input);
                 input.click();
                 document.body.removeChild(input);
+            });
+        }
+        // --- PASSWORD CHANGE LOGIC ---
+        if (changePassBtn && modal) {
+            changePassBtn.addEventListener('click', () => {
+                modal.classList.add('active');
+                oldPassInput.focus();
+            });
+        }
+
+        const closeModal = () => {
+            if (modal) modal.classList.remove('active');
+            oldPassInput.value = '';
+            newPassInput.value = '';
+            confirmPassInput.value = '';
+        };
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', closeModal);
+        }
+
+        if (saveBtn) {
+            saveBtn.addEventListener('click', async () => {
+                const oldPass = oldPassInput.value;
+                const newPass = newPassInput.value;
+                const confirmPass = confirmPassInput.value;
+
+                if (!oldPass || !newPass || !confirmPass) {
+                    alert('Please fill all fields');
+                    return;
+                }
+                if (newPass !== confirmPass) {
+                    alert('New passwords do not match');
+                    return;
+                }
+                if (newPass.length < 8) {
+                    alert('Password must be at least 8 characters long');
+                    return;
+                }
+
+                try {
+                    saveBtn.innerText = "Verifying...";
+                    (saveBtn as HTMLButtonElement).disabled = true;
+
+                    // 1. Get user data
+                    const currentUser = await userRepository.getCurrentUser();
+                    
+                    // 2. Verfiy old password
+                    const oldSalt = base64ToBuff(currentUser.salt);
+                    const oldMasterKey = await cryptoService.deriveMasterKey(oldPass, oldSalt);
+                    
+                    let decryptedVaultKey: CryptoKey;
+                    try {
+                        decryptedVaultKey = await cryptoService.decryptAndImportVaultKey(
+                            currentUser.encryptedVaultKey, 
+                            oldMasterKey
+                        );
+                    } catch (_e) {
+                        alert('Incorrect current password');
+                        saveBtn.innerText = "Update";
+                        (saveBtn as HTMLButtonElement).disabled = false;
+                        return;
+                    }
+
+                    saveBtn.innerText = "Updating...";
+                    
+                    const newSalt = cryptoService.generateSalt();
+                    const newMasterKey = await cryptoService.deriveMasterKey(newPass, newSalt);
+
+                    const newEncryptedVaultKey = await cryptoService.exportAndEncryptVaultKey(
+                        decryptedVaultKey, 
+                        newMasterKey
+                    );
+
+                    await userRepository.updateMasterPasswordProtection(
+                        currentUser.id, 
+                        buffToBase64(newSalt), 
+                        newEncryptedVaultKey
+                    );
+                    
+                    alert('Master Password updated successfully!');
+                    closeModal();
+
+                } catch (error) {
+                    console.error('Password change failed:', error);
+                    alert('An error occurred while updating password.');
+                } finally {
+                    saveBtn.innerText = "Update";
+                    if (saveBtn instanceof HTMLButtonElement) saveBtn.disabled = false;
+                }
             });
         }
     }
