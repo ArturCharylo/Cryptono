@@ -288,6 +288,52 @@ input:checked + .slider:before {
     font-size: 1rem;
 }
 
+
+.sub-item {
+    display: none;
+    
+    border-top: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    
+    margin-top: -9px; 
+    
+    padding-top: 0;
+    padding-bottom: 16px;
+    
+    background: var(--glass-bg-dark);
+    position: relative;
+    z-index: 1;
+}
+
+.sub-item .item-info .item-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    opacity: 0.9;
+    font-weight: 400;
+}
+
+/* Ważne: teh switch must be an sub-item*/
+.settings-item:not(.sub-item) {
+    position: relative;
+    z-index: 2;
+}
+
+.sub-item[style*="display: flex"] {
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from { 
+        opacity: 0; 
+        transform: translateY(-10px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
