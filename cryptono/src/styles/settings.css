@@ -6,10 +6,22 @@
     animation: fadeIn 0.3s ease-out;
 }
 
+/* Added: Ensure logo container creates a positioning context for the back button */
+.logo {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 4px;
+}
+
 .back-btn {
     position: absolute;
-    top: 20px;
-    left: 20px;
+    /* Changed: Center vertically relative to the logo container */
+    top: 50%;
+    left: 0; /* Changed: Align to the start of the container */
+    transform: translateY(-50%);
     z-index: 10;
     
     background: var(--glass-bg-dark);
@@ -19,7 +31,10 @@
     
     width: 36px;
     height: 36px;
-    border-radius: 10px;
+    
+    /* Changed: Make it a perfect circle */
+    border-radius: 50%;
+    
     cursor: pointer;
     
     display: flex;
@@ -37,7 +52,10 @@
     background: var(--bg-btn-hover);
     border-color: var(--glow-border-hover);
     color: var(--text-primary);
-    transform: translateX(-2px);
+    
+    /* Changed: Maintain vertical centering while adding hover effect */
+    transform: translateY(-50%) translateX(-2px); 
+    
     box-shadow: 0 4px 12px var(--glow-shadow-hover);
 }
 
@@ -46,7 +64,8 @@
 }
 
 .back-btn:active {
-    transform: scale(0.95) translateX(-2px);
+    /* Changed: Maintain vertical centering while pressing */
+    transform: translateY(-50%) scale(0.95) translateX(-2px);
 }
 
 .header {
