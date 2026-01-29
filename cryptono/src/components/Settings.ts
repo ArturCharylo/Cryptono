@@ -1,3 +1,5 @@
+import { vaultRepository } from "../repositories/VaultRepository";
+
 export class Settings {
     navigate: (path: string) => void;
 
@@ -198,16 +200,100 @@ export class Settings {
             await chrome.storage.local.set({ theme: newTheme });
         });
 
-        // Placeholder actions for Import/Export
-        if (importBtn) {
-            importBtn.addEventListener('click', () => {
-                console.log('Import triggered');
+      // --- EXPORT FUNCTIONALITY ---
+        if (exportBtn) {
+            exportBtn.addEventListener('click', async () => {
+                try {
+                    const items = await vaultRepository.getAllItems();
+
+                    if (!items || items.length === 0) {
+                        alert('No items to export.');
+                        return;
+                    }
+
+                    const dataStr = JSON.stringify(items, null, 2);
+                    const blob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `cryptono_backup_${new Date().toISOString().slice(0, 10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                } catch (error) {
+                    console.error('Export failed:', error);
+                    alert('Failed to export data.');
+                }
             });
         }
 
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => {
-                console.log('Export triggered');
+        // --- IMPORT FUNCTIONALITY ---
+        if (importBtn) {
+            importBtn.addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.style.display = 'none';
+
+                input.onchange = async (e: Event) => {
+                    const target = e.target as HTMLInputElement;
+                    if (!target.files || target.files.length === 0) return;
+
+                    const file = target.files[0];
+                    const reader = new FileReader();
+
+                    reader.onload = async (event) => {
+                        try {
+                            const jsonContent = event.target?.result as string;
+                            const importedItems = JSON.parse(jsonContent);
+
+                            if (!Array.isArray(importedItems)) {
+                                throw new Error('Invalid backup format: root must be an array');
+                            }
+
+                            let count = 0;
+
+                            for (const item of importedItems) {
+                                // validate basic fields
+                                if (item.site || item.url && item.username && item.password) {
+                                
+                                    // Important: Generate new ID to avoid conflicts.
+                                    const newItem = {
+                                        id: crypto.randomUUID(), // Generates unique ID
+                                        url: item.url || item.site, // Handles older/different field names
+                                        username: item.username,
+                                        password: item.password,
+                                        createdAt: Date.now(),
+                                        note: item.note || '',
+                                        fields: item.fields || []
+                                    };
+
+                                    // addItem expects a full VaultItem object (with id)
+                                    await vaultRepository.addItem(newItem);
+                                    count++;
+                                }
+                            }
+
+                            alert(`Successfully imported ${count} items!`);
+                            // Optionally redirect user after success:
+                            // this.navigate('/passwords');
+
+                        } catch (error) {
+                            console.error('Import error:', error);
+                            alert('Failed to import file. Check console for details.');
+                        }
+                    };
+
+                    reader.readAsText(file);
+                };
+
+                document.body.appendChild(input);
+                input.click();
+                document.body.removeChild(input);
             });
         }
     }
