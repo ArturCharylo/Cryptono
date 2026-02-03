@@ -206,6 +206,7 @@
   font-size: 14px;
   opacity: 0;
   transition: opacity .7s, visibility .7s;
+  z-index: 1000; /* z-index set to 1000, ensures that no other elements overlap the toast */
 }
 
 .toast.show {

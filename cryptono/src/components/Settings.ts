@@ -295,30 +295,58 @@ export class Settings {
                                 throw new Error('Invalid backup format: root must be an array');
                             }
 
+                            // 1. FETCH EXISTING DATA
+                            // Fetch everything once to avoid querying the DB for every item (performance)
+                            const existingItems = await vaultRepository.getAllItems();
+                            
+                            // 2. CREATE A SET OF UNIQUE KEYS
+                            // Create a "signature" for each item: "username|url"
+                            const existingSignatures = new Set(
+                                existingItems.map(item => `${item.username}|${item.url}`)
+                            );
+
                             let count = 0;
+                            let skipped = 0;
 
                             for (const item of importedItems) {
-                                // validate basic fields
+                                // Basic fields validation
                                 if (item.site || item.url && item.username && item.password) {
-                                
+                                    
+                                    const itemUrl = item.url || item.site;
+                                    const itemUser = item.username;
+
+                                    // 3. CHECK FOR DUPLICATES
+                                    // Create a signature for the imported item
+                                    const signature = `${itemUser}|${itemUrl}`;
+
+                                    if (existingSignatures.has(signature)) {
+                                        skipped++;
+                                        console.log(`Skipping duplicate: ${itemUser} at ${itemUrl}`);
+                                        continue; // Skip to the next item, do not add this one
+                                    }
+
                                     // Important: Generate new ID to avoid conflicts.
                                     const newItem = {
-                                        id: crypto.randomUUID(), // Generates unique ID
-                                        url: item.url || item.site, // Handles older/different field names
-                                        username: item.username,
+                                        id: crypto.randomUUID(),
+                                        url: itemUrl, // Using normalized variable
+                                        username: itemUser,
                                         password: item.password,
                                         createdAt: Date.now(),
                                         note: item.note || '',
                                         fields: item.fields || []
                                     };
 
-                                    // addItem expects a full VaultItem object (with id)
                                     await vaultRepository.addItem(newItem);
                                     count++;
                                 }
                             }
 
-                            showToastMessage(`Successfully imported ${count} items!`, ToastType.SUCCESS, 3000);
+                            // 4. SHOW RESULT MESSAGE
+                            if (skipped > 0) {
+                                showToastMessage(`Imported ${count} items. Skipped ${skipped} duplicates.`, ToastType.SUCCESS, 4000);
+                            } else {
+                                showToastMessage(`Successfully imported ${count} items!`, ToastType.SUCCESS, 3000);
+                            }
 
                         } catch (error) {
                             console.error('Import error:', error);
