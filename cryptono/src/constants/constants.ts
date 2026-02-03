@@ -5,7 +5,8 @@ export const DB_CONFIG = {
 } as const
 
 export const STORAGE_KEYS = {
-    MASTER: "masterPassword"
+    MASTER: "masterPassword",
+    SESSION_STORAGE_KEY: "vaultKey_JWK",
 } as const
 
 export const CRYPTO_KEYS = {

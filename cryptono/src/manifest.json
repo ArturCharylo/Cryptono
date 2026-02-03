@@ -6,7 +6,7 @@
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
   "description": "Store and autofill your passwords securely.",
-  "permissions": ["storage", "scripting", "activeTab", "clipboardWrite"],
+  "permissions": ["storage", "scripting", "activeTab", "clipboardWrite", "idle"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js",
