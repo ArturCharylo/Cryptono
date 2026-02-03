@@ -321,7 +321,6 @@ export class Settings {
 
                                     if (existingSignatures.has(signature)) {
                                         skipped++;
-                                        console.log(`Skipping duplicate: ${itemUser} at ${itemUrl}`);
                                         continue; // Skip to the next item, do not add this one
                                     }
 

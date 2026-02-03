@@ -1,9 +1,9 @@
-import { CRYPTO_KEYS } from "../constants/constants";
+import { CRYPTO_KEYS, STORAGE_KEYS } from "../constants/constants";
 
 export class SessionService {
     private static instance: SessionService;
     private vaultKey: CryptoKey | null = null;
-    private readonly STORAGE_KEY = 'vaultKey_JWK';
+    private readonly STORAGE_KEY = STORAGE_KEYS.SESSION_STORAGE_KEY;
 
     private constructor() {}
 
