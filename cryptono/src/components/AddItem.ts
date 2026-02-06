@@ -177,6 +177,14 @@ export class AddItem {
         if (genBtn) {
             genBtn.addEventListener('click', () => {
                 const newPassword = generateStrongPassword();
+                
+                // ERROR HANDLING RESTORED:
+                // If the generator returns an empty string, show the Toast here.
+                if (!newPassword) {
+                    showToastMessage('Error generating strong password. Try again', ToastType.ERROR, 2500);
+                    return;
+                }
+                
                 passInput.value = newPassword;
                 rePassInput.value = newPassword;
                 passInput.type = "text";

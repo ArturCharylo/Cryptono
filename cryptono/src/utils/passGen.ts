@@ -1,5 +1,7 @@
 import { passwordRegex } from "../validation/validate";
-import { ToastType, showToastMessage } from "./messages";
+
+// We removed the dependency on 'showToastMessage' to make this function pure
+// and usable within the content script context where the popup DOM doesn't exist.
 
 export const generateStrongPassword = (length: number = 16): string => {
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
@@ -23,7 +25,7 @@ export const generateStrongPassword = (length: number = 16): string => {
         attempts++;
     }
 
-    // Fallback if in 50 attempts the random function doesn't generate any correct passwords wich is way less than unlikely
-    showToastMessage('Error generating strong password. Try again', ToastType.ERROR, 2500)
+    // Return an empty string to signal failure, without accessing the DOM
+    console.error('Error generating strong password after 50 attempts');
     return ''; 
 };
