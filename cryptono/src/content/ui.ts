@@ -44,7 +44,8 @@ export function showAutoSaveToast(message: string = 'Data saved!') {
 
     shadow.appendChild(style);
     shadow.appendChild(toastDiv);
-    document.body.appendChild(host);
+    // Append to documentElement (<html>) to avoid Body margin issues
+    document.documentElement.appendChild(host);
 
     requestAnimationFrame(() => toastDiv.classList.add('visible'));
 
@@ -55,25 +56,36 @@ export function showAutoSaveToast(message: string = 'Data saved!') {
 }
 
 export const createSuggestionDropdown = (input: HTMLInputElement, username: string, onFill: () => void) => {
-    if (document.getElementById('cryptono-dropdown-host')) return;
+    // Instead of returning, remove the existing one. 
+    // This prevents "zombie" elements from blocking the new one.
+    const existing = document.getElementById('cryptono-dropdown-host');
+    if (existing) existing.remove();
 
     const host = document.createElement('div');
     host.id = 'cryptono-dropdown-host';
+
+    // Add pointer-events: none to host so the empty overlay doesn't block clicks on the page
     Object.assign(host.style, {
         position: 'absolute',
         zIndex: '2147483647',
-        top: '0px', left: '0px', width: '100%'
+        top: '0px', 
+        left: '0px', 
+        width: '100%',
+        pointerEvents: 'none'
     });
 
     const shadow = host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
+    
     style.textContent = `
+        :host { display: block; }
         .dropdown {
             position: absolute;
             background: #1e1e1e;
             border: 1px solid #333;
             border-radius: 6px;
             padding: 8px 12px;
+            padding-right: 32px;
             color: #fff;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             font-size: 14px;
@@ -81,6 +93,7 @@ export const createSuggestionDropdown = (input: HTMLInputElement, username: stri
             cursor: pointer;
             min-width: 200px;
             animation: fadeIn 0.15s ease-out;
+            pointer-events: auto; /* Re-enable clicks on the dropdown itself */
         }
         .dropdown:hover { background: #2a2a2a; border-color: #555; }
         .row { display: flex; align-items: center; gap: 10px; }
@@ -88,6 +101,28 @@ export const createSuggestionDropdown = (input: HTMLInputElement, username: stri
         .text { display: flex; flex-direction: column; }
         .user { font-weight: 600; }
         .hint { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+        .close-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 16px;
+            line-height: 1;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+        .close-btn:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.1);
+        }
+
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     `;
 
@@ -105,6 +140,7 @@ export const createSuggestionDropdown = (input: HTMLInputElement, username: stri
                 <span class="hint">Click to autofill</span>
             </div>
         </div>
+        <div class="close-btn" title="Close">&times;</div>
     `;
 
     const close = () => {
@@ -113,7 +149,9 @@ export const createSuggestionDropdown = (input: HTMLInputElement, username: stri
     };
 
     const outsideClickHandler = (e: MouseEvent) => {
-        if (e.target !== input && e.target !== host) close();
+        if (e.target === input) return;
+        if (host.contains(e.target as Node)) return;
+        close();
     };
 
     dropdown.addEventListener('mousedown', (e) => {
@@ -122,35 +160,45 @@ export const createSuggestionDropdown = (input: HTMLInputElement, username: stri
         close();
     });
 
+    const closeBtn = dropdown.querySelector('.close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('mousedown', (e) => {
+            e.stopPropagation(); 
+            e.preventDefault();
+            close();
+        });
+    }
+
     shadow.appendChild(style);
     shadow.appendChild(dropdown);
-    document.body.appendChild(host);
+    
+    // Append to documentElement (<html>) instead of body
+    // This avoids positioning errors if <body> has margin-top or position: relative
+    document.documentElement.appendChild(host);
 
     setTimeout(() => document.addEventListener('mousedown', outsideClickHandler), 50);
 };
 
-// The generator dropdown is similar to the suggestion dropdown but with different styling and content.
-// This function creates a popup to generate a strong password, and calls the provided 
-// callback when clicked. It also includes error handling for generation failures.
 export const createGeneratorDropdown = (input: HTMLInputElement, onGenerate: () => void) => {
-    // Check if the dropdown host already exists
-    if (document.getElementById('cryptono-gen-dropdown-host')) return;
+    // remove existing instead of returning
+    const existing = document.getElementById('cryptono-gen-dropdown-host');
+    if (existing) existing.remove();
 
     const host = document.createElement('div');
     host.id = 'cryptono-gen-dropdown-host';
     
-    // Dynamic positioning requires inline styles (minimal set)
-    const rect = input.getBoundingClientRect();
-    host.style.position = 'absolute';
-    host.style.zIndex = '2147483647';
-    host.style.top = `${rect.bottom + window.scrollY + 4}px`;
-    host.style.left = `${rect.left + window.scrollX}px`;
-    host.style.width = '100%'; // Prevent collapsing
+    Object.assign(host.style, {
+        position: 'absolute',
+        zIndex: '2147483647',
+        top: '0px', 
+        left: '0px', 
+        width: '100%',
+        pointerEvents: 'none' // Ensure clicks pass through
+    });
 
     const shadow = host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     
-    // Encapsulated styling
     style.textContent = `
         :host {
             display: block;
@@ -158,9 +206,10 @@ export const createGeneratorDropdown = (input: HTMLInputElement, onGenerate: () 
         }
         .dropdown {
             background: #1e1e1e;
-            border: 1px solid #10B981; /* Green accent for generator */
+            border: 1px solid #10B981;
             border-radius: 6px;
             padding: 8px 12px;
+            padding-right: 32px;
             color: #fff;
             font-size: 14px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
@@ -172,13 +221,13 @@ export const createGeneratorDropdown = (input: HTMLInputElement, onGenerate: () 
             gap: 10px;
             animation: fadeIn 0.15s ease-out;
             transition: background 0.2s;
+            position: absolute;
+            pointer-events: auto; /* Re-enable clicks */
         }
         .dropdown:hover {
             background: #2a2a2a;
         }
-        .icon {
-            font-size: 18px;
-        }
+        .icon { font-size: 18px; }
         .text-container {
             display: flex;
             flex-direction: column;
@@ -192,14 +241,37 @@ export const createGeneratorDropdown = (input: HTMLInputElement, onGenerate: () 
             color: #aaa;
             margin-top: 2px;
         }
+        .close-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 16px;
+            line-height: 1;
+            transition: all 0.2s;
+            z-index: 20;
+        }
+        .close-btn:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.1);
+        }
         @keyframes fadeIn { 
             from { opacity: 0; transform: translateY(-5px); } 
             to { opacity: 1; transform: translateY(0); } 
         }
     `;
 
+    const rect = input.getBoundingClientRect();
     const dropdown = document.createElement('div');
     dropdown.className = 'dropdown';
+    dropdown.style.top = `${rect.bottom + window.scrollY + 4}px`;
+    dropdown.style.left = `${rect.left + window.scrollX}px`;
     
     dropdown.innerHTML = `
         <span class="icon">🎲</span>
@@ -207,30 +279,39 @@ export const createGeneratorDropdown = (input: HTMLInputElement, onGenerate: () 
             <span class="title">Generate Strong Password</span>
             <span class="hint">Click to fill & copy</span>
         </div>
+        <div class="close-btn" title="Close">&times;</div>
     `;
 
-    // Logic to close the dropdown
     const close = () => {
         host.remove();
         document.removeEventListener('mousedown', outsideClickHandler);
     };
 
     const outsideClickHandler = (e: MouseEvent) => {
-        // If clicked outside input and outside dropdown -> close
-        if (e.target !== input && e.target !== host) close();
+        if (e.target === input) return;
+        if (host.contains(e.target as Node)) return;
+        close();
     };
 
-    // Handle click on the generator
     dropdown.addEventListener('mousedown', (e) => {
-        e.preventDefault(); // Prevent focus loss on the input
+        e.preventDefault(); 
         onGenerate();
         close();
     });
 
+    const closeBtn = dropdown.querySelector('.close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('mousedown', (e) => {
+            e.stopPropagation(); 
+            e.preventDefault();
+            close();
+        });
+    }
+
     shadow.appendChild(style);
     shadow.appendChild(dropdown);
-    document.body.appendChild(host);
+    
+    document.documentElement.appendChild(host);
 
-    // Add listener with a slight delay to avoid immediate closing upon creation
     setTimeout(() => document.addEventListener('mousedown', outsideClickHandler), 50);
 };
