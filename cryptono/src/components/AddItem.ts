@@ -189,7 +189,9 @@ export class AddItem {
                 rePassInput.value = newPassword;
                 passInput.type = "text";
                 rePassInput.type = "text";
-                
+                if (genBtn.textContent == "Generated!"){
+                    genBtn.textContent = "🎲 Generate";
+                } 
                 const originalText = genBtn.textContent;
                 genBtn.textContent = "Generated!";
                 setTimeout(() => genBtn.textContent = originalText, 1000);
