@@ -174,6 +174,8 @@ export class AddItem {
         const rePassInput = document.getElementById('re-pass') as HTMLInputElement;
         const toggleVisBtn = document.getElementById('toggle-pass-visibility');
 
+        let genBtnTimeout: number | null = null;
+
         if (genBtn) {
             genBtn.addEventListener('click', () => {
                 const newPassword = generateStrongPassword();
@@ -194,7 +196,12 @@ export class AddItem {
                 } 
                 const originalText = genBtn.textContent;
                 genBtn.textContent = "Generated!";
-                setTimeout(() => genBtn.textContent = originalText, 1000);
+
+                // Clear previous timeout if button is clicked again
+                if (genBtnTimeout) {
+                    clearTimeout(genBtnTimeout);
+                }
+                genBtnTimeout = setTimeout(() => genBtn.textContent = originalText, 1000);
             });
         }
 

@@ -172,6 +172,8 @@ export class EditItem {
         const urlInput = document.getElementById('url') as HTMLInputElement;
         const usernameInput = document.getElementById('username') as HTMLInputElement;
         const noteInput = document.getElementById('note') as HTMLTextAreaElement;
+        
+        let genBtnTimeout: number | null = null;
 
         // Load data for editing
         (async () => {
@@ -235,7 +237,12 @@ export class EditItem {
                 } 
                 const originalText = genBtn.textContent;
                 genBtn.textContent = "Generated!";
-                setTimeout(() => genBtn.textContent = originalText, 1000);
+                
+                // Clear previous timeout if button is clicked again
+                if (genBtnTimeout) {
+                    clearTimeout(genBtnTimeout);
+                }
+                genBtnTimeout = setTimeout(() => genBtn.textContent = originalText, 1000);
             });
         }
 
