@@ -180,19 +180,45 @@ export class Login {
                 const success = await sessionService.loginWithPin(pinValue);
                 
                 if (success) {
+                    // Reset attempts counter on success
+                    localStorage.removeItem('pin_attempts');
                     this.navigate('/passwords');
                 } else {
-                    if (pinError) setErrorMessage(pinError, 'Incorrect PIN');
-                    setInputClassError(pinInput, true);
-                    pinInput.value = ''; // Clear incorrect PIN
-                    
-                    // Simple shake animation effect (Web Animation API is fine in TS)
-                    pinInput.animate([
-                        { transform: 'translateX(0)' },
-                        { transform: 'translateX(-10px)' },
-                        { transform: 'translateX(10px)' },
-                        { transform: 'translateX(0)' }
-                    ], { duration: 300 });
+                    // Increment failed attempts
+                    let attempts = parseInt(localStorage.getItem('pin_attempts') || '0');
+                    attempts++;
+                    localStorage.setItem('pin_attempts', attempts.toString());
+
+                    if (attempts >= 3) {
+                        // Max attempts reached logic
+                        await sessionService.disablePinUnlock();
+                        localStorage.removeItem('pin_attempts'); // Cleanup counter
+                        
+                        // Switch to password view
+                        if (pinSection) pinSection.classList.add('hidden');
+                        if (passwordSection) passwordSection.classList.remove('hidden');
+                        
+                        // Hide "Switch to PIN" link since PIN is now disabled
+                        if (pinSwitchContainer) pinSwitchContainer.classList.add('hidden');
+                        
+                        document.getElementById('username')?.focus();
+                        
+                        showToastMessage('PIN login disabled due to too many failed attempts.', ToastType.ERROR, 5000);
+                    } else {
+                        // Show error with remaining attempts
+                        if (pinError) setErrorMessage(pinError, `Incorrect PIN. ${3 - attempts} attempts left.`);
+                        
+                        setInputClassError(pinInput, true);
+                        pinInput.value = ''; // Clear incorrect PIN
+                        
+                        // Simple shake animation effect
+                        pinInput.animate([
+                            { transform: 'translateX(0)' },
+                            { transform: 'translateX(-10px)' },
+                            { transform: 'translateX(10px)' },
+                            { transform: 'translateX(0)' }
+                        ], { duration: 300 });
+                    }
                 }
             } catch (error) {
                 console.error(error);
