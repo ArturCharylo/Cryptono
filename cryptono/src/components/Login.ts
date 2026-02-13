@@ -21,7 +21,7 @@ export class Login {
                     <p class="extensionSub">Your vault, secured</p>
                 </div>
 
-                <div id="pin-section" style="display: none;">
+                <div id="pin-section" class="hidden">
                     <form id="pin-form" class="login-form">
                         <div class="input-group">
                             <label for="pin-code">Quick Access PIN</label>
@@ -31,13 +31,13 @@ export class Login {
                         
                         <button type="submit" class="login-btn" id="pin-submit-btn">
                             <span class="btn-text">Unlock with PIN</span>
-                            <div class="btn-loader" style="display: none;">
+                            <div class="btn-loader hidden">
                                 <div class="spinner"></div>
                             </div>
                         </button>
                     </form>
-                    <div style="margin-top: 15px; text-align: center;">
-                        <a href="#" id="switch-to-pass" class="security-note-link" style="font-size: 0.9em;">Or log in with Master Password</a>
+                    <div class="auth-switch-wrapper">
+                        <a href="#" id="switch-to-pass" class="security-note-link small-text">Or log in with Master Password</a>
                     </div>
                 </div>
 
@@ -57,14 +57,14 @@ export class Login {
 
                         <button type="submit" class="login-btn" id="pass-submit-btn">
                             <span class="btn-text">Unlock Vault</span>
-                            <div class="btn-loader" style="display: none;">
+                            <div class="btn-loader hidden">
                                 <div class="spinner"></div>
                             </div>
                         </button>
                     </form>
 
-                    <div id="pin-switch-container" style="margin-top: 15px; text-align: center; display: none;">
-                        <a href="#" id="switch-to-pin" class="security-note-link" style="font-size: 0.9em;">Log in with PIN</a>
+                    <div id="pin-switch-container" class="auth-switch-wrapper hidden">
+                        <a href="#" id="switch-to-pin" class="security-note-link small-text">Log in with PIN</a>
                     </div>
                 </div>
 
@@ -105,12 +105,12 @@ export class Login {
         const hasPin = await sessionService.hasPinConfigured();
 
         if (hasPin && pinSection && passwordSection) {
-            // Show PIN screen by default if configured
-            pinSection.style.display = 'block';
-            passwordSection.style.display = 'none';
+            // Show PIN screen by default if configured (using classes)
+            pinSection.classList.remove('hidden');
+            passwordSection.classList.add('hidden');
             
             // Allow switching back to PIN from Password screen
-            if (pinSwitchContainer) pinSwitchContainer.style.display = 'block';
+            if (pinSwitchContainer) pinSwitchContainer.classList.remove('hidden');
             
             // Focus PIN input
             setTimeout(() => document.getElementById('pin-code')?.focus(), 100);
@@ -128,8 +128,8 @@ export class Login {
         if (switchToPassBtn && pinSection && passwordSection) {
             switchToPassBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                pinSection.style.display = 'none';
-                passwordSection.style.display = 'block';
+                pinSection.classList.add('hidden');
+                passwordSection.classList.remove('hidden');
                 document.getElementById('username')?.focus();
             });
         }
@@ -137,8 +137,8 @@ export class Login {
         if (switchToPinBtn && pinSection && passwordSection) {
             switchToPinBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                passwordSection.style.display = 'none';
-                pinSection.style.display = 'block';
+                passwordSection.classList.add('hidden');
+                pinSection.classList.remove('hidden');
                 document.getElementById('pin-code')?.focus();
             });
         }
@@ -161,6 +161,7 @@ export class Login {
             const pinInput = document.getElementById('pin-code') as HTMLInputElement;
             const pinError = document.getElementById('pin-error');
             const pinValue = pinInput.value;
+            const loader = pinSubmitBtn?.querySelector('.btn-loader');
 
             if (!pinValue) {
                 if (pinError) setErrorMessage(pinError, 'Enter PIN');
@@ -171,6 +172,7 @@ export class Login {
             if (pinSubmitBtn) {
                 pinSubmitBtn.classList.add('loading');
                 pinSubmitBtn.disabled = true;
+                loader?.classList.remove('hidden'); // Show loader via class
             }
 
             try {
@@ -184,7 +186,7 @@ export class Login {
                     setInputClassError(pinInput, true);
                     pinInput.value = ''; // Clear incorrect PIN
                     
-                    // Simple shake animation effect (optional)
+                    // Simple shake animation effect (Web Animation API is fine in TS)
                     pinInput.animate([
                         { transform: 'translateX(0)' },
                         { transform: 'translateX(-10px)' },
@@ -199,6 +201,7 @@ export class Login {
                 if (pinSubmitBtn) {
                     pinSubmitBtn.classList.remove('loading');
                     pinSubmitBtn.disabled = false;
+                    loader?.classList.add('hidden'); // Hide loader via class
                 }
             }
         });
@@ -209,6 +212,7 @@ export class Login {
             event.preventDefault();
 
             let isValid = true;
+            const loader = passSubmitBtn?.querySelector('.btn-loader');
 
             const formData = new FormData(loginForm);
             const username = formData.get('username') as string;
@@ -239,6 +243,7 @@ export class Login {
             if (passSubmitBtn) {
                 passSubmitBtn.classList.add('loading');
                 passSubmitBtn.disabled = true;
+                loader?.classList.remove('hidden');
             }
 
             try {
@@ -257,6 +262,7 @@ export class Login {
                 if (passSubmitBtn) {
                     passSubmitBtn.classList.remove('loading');
                     passSubmitBtn.disabled = false;
+                    loader?.classList.add('hidden');
                 }
             }
         });
@@ -286,9 +292,7 @@ export class Login {
         try {
             await userRepository.Login(username, password);
         } catch (err) {
-            // Log error to console, which allows us to avoid warnings for only throw new Error in catch
             console.error("Login attempt failed:", err);
-            
             throw new Error('Invalid credentials'); 
         }
     }
