@@ -262,6 +262,12 @@
     display: block !important;
 }
 
+.modal-description {
+    margin-bottom: 15px;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+}
+
 /* Responsive */
 @media (max-height: 500px) {
     .container {
