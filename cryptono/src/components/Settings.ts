@@ -1,6 +1,7 @@
 import { vaultRepository } from '../repositories/VaultRepository';
 import { userRepository } from '../repositories/UserRepository';
 import { cryptoService } from '../services/CryptoService';
+import { SessionService } from '../services/SessionService';
 import { buffToBase64, base64ToBuff } from '../utils/buffer';
 import { showToastMessage, ToastType } from '../utils/messages';
 import { passwordRegex } from '../validation/validate';
@@ -67,6 +68,18 @@ export class Settings {
 
                     <div class="settings-group">
                         <h2 class="group-title">Security</h2>
+                        
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <span class="item-label">Quick Access (PIN)</span>
+                                <span class="item-description">Unlock vault with a short code.</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="pin-unlock-toggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
                         <div class="settings-item">
                             <div class="item-info">
                                 <span class="item-label">Clear Clipboard</span>
@@ -120,7 +133,7 @@ export class Settings {
                             <input type="password" id="confirm-pass" class="modal-input" placeholder="Confirm New Password">
                         </div>
                         
-                        <p id="modal-error-msg" class="modal-error-text"></p>
+                        <p id="modal-error-msg" class="modal-error-text hidden"></p>
 
                         <div class="modal-actions">
                             <button id="cancel-pass" class="btn-secondary">Cancel</button>
@@ -128,9 +141,35 @@ export class Settings {
                         </div>
                     </div>
                 </div>
+
+                <div id="pin-modal" class="modal">
+                    <div class="modal-content">
+                        <h3>Set up PIN Code</h3>
+                        <p class="modal-description">
+                            Enter a PIN to quickly unlock your vault on this device.
+                        </p>
+                        <div class="form-group">
+                            <label>New PIN</label>
+                            <input type="password" id="new-pin" class="modal-input" placeholder="Enter PIN (min 4 chars)" inputmode="numeric">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm PIN</label>
+                            <input type="password" id="confirm-pin" class="modal-input" placeholder="Repeat PIN" inputmode="numeric">
+                        </div>
+                        
+                        <p id="pin-modal-error-msg" class="modal-error-text hidden"></p>
+
+                        <div class="modal-actions">
+                            <button id="cancel-pin" class="btn-secondary">Cancel</button>
+                            <button id="save-pin" class="btn-primary">Enable PIN</button>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         `;
     }
+
     async afterRender() {
         // Elements
         const autoLockToggle = document.getElementById('auto-lock-toggle') as HTMLInputElement;
@@ -139,6 +178,8 @@ export class Settings {
         const btnMinus = document.getElementById('decrease-lock');
         const btnPlus = document.getElementById('increase-lock');
         
+        const pinUnlockToggle = document.getElementById('pin-unlock-toggle') as HTMLInputElement;
+
         const backBtn = document.getElementById('back-to-passwords');
         const importBtn = document.getElementById('import-btn');
         const exportBtn = document.getElementById('export-btn');
@@ -155,8 +196,17 @@ export class Settings {
         const confirmPassInput = document.getElementById('confirm-pass') as HTMLInputElement;
         const modalErrorMsg = document.getElementById('modal-error-msg');
 
+        // PIN Modal Elements
+        const pinModal = document.getElementById('pin-modal');
+        const cancelPinBtn = document.getElementById('cancel-pin');
+        const savePinBtn = document.getElementById('save-pin');
+        const newPinInput = document.getElementById('new-pin') as HTMLInputElement;
+        const confirmPinInput = document.getElementById('confirm-pin') as HTMLInputElement;
+        const pinModalErrorMsg = document.getElementById('pin-modal-error-msg');
+
+        const sessionService = SessionService.getInstance();
+
         // --- Load Initial State from Storage ---
-        // Retrieving: theme, autoLockEnabled (bool), lockTime (number)
         const storageData = await chrome.storage.local.get(['theme', 'autoLockEnabled', 'lockTime']);
         
         // 1. Theme Logic
@@ -164,24 +214,33 @@ export class Settings {
         darkModeToggle.checked = isDark;
 
         // 2. Auto-lock Logic
-        const isAutoLockEnabled = storageData.autoLockEnabled !== false; // Default to true if undefined
-        const currentLockTime = storageData.lockTime || 15; // Default to 15 if undefined
+        const isAutoLockEnabled = storageData.autoLockEnabled !== false; 
+        const currentLockTime = storageData.lockTime || 15;
 
         if (autoLockToggle) {
             autoLockToggle.checked = isAutoLockEnabled;
-            // Show/Hide controls based on initial state
+            // Use class toggling instead of inline style
             if (autoLockControls) {
-                autoLockControls.style.display = isAutoLockEnabled ? 'flex' : 'none';
+                if (isAutoLockEnabled) {
+                    autoLockControls.classList.remove('hidden');
+                } else {
+                    autoLockControls.classList.add('hidden');
+                }
             }
         }
         if (lockInput) {
             lockInput.value = currentLockTime.toString();
         }
 
+        // 3. PIN Logic
+        if (pinUnlockToggle) {
+            const hasPin = await sessionService.hasPinConfigured();
+            pinUnlockToggle.checked = hasPin;
+        }
+
 
         // --- Event Listeners ---
 
-        // Back navigation
         if (backBtn) {
             backBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -194,19 +253,119 @@ export class Settings {
             autoLockToggle.addEventListener('change', async () => {
                 const isEnabled = autoLockToggle.checked;
                 
-                // Toggle visibility of the counter
-                autoLockControls.style.display = isEnabled ? 'flex' : 'none';
+                // Toggle visibility via class
+                if (isEnabled) {
+                    autoLockControls.classList.remove('hidden');
+                } else {
+                    autoLockControls.classList.add('hidden');
+                }
 
-                // Save state to storage
                 await chrome.storage.local.set({ autoLockEnabled: isEnabled });
             });
         }
 
-        // Lock counter logic (Increase/Decrease)
+        // Toggle PIN Unlock
+        if (pinUnlockToggle) {
+            pinUnlockToggle.addEventListener('change', async () => {
+                const isEnabled = pinUnlockToggle.checked;
+
+                if (isEnabled) {
+                    // Open Modal
+                    if (pinModal) {
+                        pinModal.classList.add('active');
+                        if (newPinInput) newPinInput.value = '';
+                        if (confirmPinInput) confirmPinInput.value = '';
+                        if (pinModalErrorMsg) pinModalErrorMsg.classList.add('hidden');
+                        if (newPinInput) newPinInput.focus();
+                    }
+                } else {
+                    // Disable PIN
+                    try {
+                        await sessionService.disablePinUnlock();
+                        showToastMessage('PIN login disabled', ToastType.NORMAL, 2000);
+                    } catch (e) {
+                        console.error("Failed to remove PIN", e);
+                        showToastMessage('Error disabling PIN', ToastType.ERROR, 2000);
+                        pinUnlockToggle.checked = true;
+                    }
+                }
+            });
+        }
+
+        // --- PIN MODAL LOGIC ---
+        
+        const closePinModal = () => {
+            if (pinModal) pinModal.classList.remove('active');
+            sessionService.hasPinConfigured().then(hasPin => {
+                if (pinUnlockToggle && pinUnlockToggle.checked !== hasPin) {
+                    pinUnlockToggle.checked = hasPin;
+                }
+            });
+        };
+
+        if (cancelPinBtn) {
+            cancelPinBtn.addEventListener('click', closePinModal);
+        }
+
+        if (savePinBtn) {
+            savePinBtn.addEventListener('click', async () => {
+                const pin = newPinInput.value;
+                const confirm = confirmPinInput.value;
+
+                // Hide error msg initially
+                if (pinModalErrorMsg) pinModalErrorMsg.classList.add('hidden');
+
+                if (!pin || !confirm) {
+                    if (pinModalErrorMsg) {
+                        pinModalErrorMsg.textContent = 'Please fill all fields';
+                        pinModalErrorMsg.classList.remove('hidden');
+                    }
+                    return;
+                }
+
+                if (pin !== confirm) {
+                    if (pinModalErrorMsg) {
+                        pinModalErrorMsg.textContent = 'PINs do not match';
+                        pinModalErrorMsg.classList.remove('hidden');
+                    }
+                    return;
+                }
+
+                if (pin.length < 4) {
+                    if (pinModalErrorMsg) {
+                        pinModalErrorMsg.textContent = 'PIN must be at least 4 digits';
+                        pinModalErrorMsg.classList.remove('hidden');
+                    }
+                    return;
+                }
+
+                try {
+                    savePinBtn.textContent = 'Enabling...';
+                    (savePinBtn as HTMLButtonElement).disabled = true;
+
+                    await sessionService.enablePinUnlock(pin);
+                    
+                    if (pinModal) pinModal.classList.remove('active');
+                    showToastMessage('PIN login enabled!', ToastType.SUCCESS, 3000);
+
+                } catch (err) {
+                    console.error('Failed to set PIN', err);
+                    if (pinModalErrorMsg) {
+                        pinModalErrorMsg.textContent = 'Failed to save PIN. Try again.';
+                        pinModalErrorMsg.classList.remove('hidden');
+                    }
+                } finally {
+                    savePinBtn.textContent = 'Enable PIN';
+                    (savePinBtn as HTMLButtonElement).disabled = false;
+                }
+            });
+        }
+
+
+        // Lock counter logic
         const updateLockTime = async (newValue: number) => {
             if (lockInput) {
                 lockInput.value = newValue.toString();
-                // Save new time to storage
                 await chrome.storage.local.set({ lockTime: newValue });
             }
         };
@@ -277,7 +436,8 @@ export class Settings {
                 const input = document.createElement('input');
                 input.type = 'file';
                 input.accept = '.json';
-                input.style.display = 'none';
+                // Using class instead of inline style
+                input.classList.add('hidden');
 
                 input.onchange = async (e: Event) => {
                     const target = e.target as HTMLInputElement;
@@ -295,12 +455,7 @@ export class Settings {
                                 throw new Error('Invalid backup format: root must be an array');
                             }
 
-                            // 1. FETCH EXISTING DATA
-                            // Fetch everything once to avoid querying the DB for every item (performance)
                             const existingItems = await vaultRepository.getAllItems();
-                            
-                            // 2. CREATE A SET OF UNIQUE KEYS
-                            // Create a "signature" for each item: "username|url"
                             const existingSignatures = new Set(
                                 existingItems.map(item => `${item.username}|${item.url}`)
                             );
@@ -309,25 +464,20 @@ export class Settings {
                             let skipped = 0;
 
                             for (const item of importedItems) {
-                                // Basic fields validation
                                 if (item.site || item.url && item.username && item.password) {
                                     
                                     const itemUrl = item.url || item.site;
                                     const itemUser = item.username;
-
-                                    // 3. CHECK FOR DUPLICATES
-                                    // Create a signature for the imported item
                                     const signature = `${itemUser}|${itemUrl}`;
 
                                     if (existingSignatures.has(signature)) {
                                         skipped++;
-                                        continue; // Skip to the next item, do not add this one
+                                        continue; 
                                     }
 
-                                    // Important: Generate new ID to avoid conflicts.
                                     const newItem = {
                                         id: crypto.randomUUID(),
-                                        url: itemUrl, // Using normalized variable
+                                        url: itemUrl,
                                         username: itemUser,
                                         password: item.password,
                                         createdAt: Date.now(),
@@ -340,7 +490,6 @@ export class Settings {
                                 }
                             }
 
-                            // 4. SHOW RESULT MESSAGE
                             if (skipped > 0) {
                                 showToastMessage(`Imported ${count} items. Skipped ${skipped} duplicates.`, ToastType.SUCCESS, 4000);
                             } else {
@@ -361,20 +510,24 @@ export class Settings {
                 document.body.removeChild(input);
             });
         }
+        
         // --- PASSWORD CHANGE LOGIC ---
         
-        // Helper to set text in modal
         const setModalError = (msg: string) => {
             if (modalErrorMsg) {
                 modalErrorMsg.textContent = msg;
-                modalErrorMsg.style.display = msg ? 'block' : 'none';
+                if (msg) {
+                    modalErrorMsg.classList.remove('hidden');
+                } else {
+                    modalErrorMsg.classList.add('hidden');
+                }
             }
         };
 
         if (changePassBtn && modal) {
             changePassBtn.addEventListener('click', () => {
                 modal.classList.add('active');
-                setModalError(''); // Clear previous errors
+                setModalError(''); 
                 oldPassInput.focus();
             });
         }
@@ -384,7 +537,7 @@ export class Settings {
             oldPassInput.value = '';
             newPassInput.value = '';
             confirmPassInput.value = '';
-            setModalError(''); // Clear errors on close
+            setModalError(''); 
         };
 
         if (cancelBtn) {
@@ -397,7 +550,6 @@ export class Settings {
                 const newPass = newPassInput.value;
                 const confirmPass = confirmPassInput.value;
 
-                // Clear previous errors
                 setModalError('');
 
                 if (!oldPass || !newPass || !confirmPass) {
@@ -409,7 +561,6 @@ export class Settings {
                     return;
                 }
                 
-                // Regex validation for password strength
                 if (!passwordRegex.test(newPass)) {
                     setModalError('Password too weak: 8+ chars, Upper, Lower, Number & Special required');
                     return;
@@ -419,10 +570,8 @@ export class Settings {
                     saveBtn.innerText = "Verifying...";
                     (saveBtn as HTMLButtonElement).disabled = true;
 
-                    // 1. Get user data
                     const currentUser = await userRepository.getCurrentUser();
                     
-                    // 2. Verfiy old password
                     const oldSalt = base64ToBuff(currentUser.salt);
                     const oldMasterKey = await cryptoService.deriveMasterKey(oldPass, oldSalt);
                     
@@ -433,35 +582,26 @@ export class Settings {
                             oldMasterKey
                         );
                     } catch (error: unknown) {
-                        
-                        // We use Type Guards to check if the error is a DOMException or Error object
-                        // This allows TS to safely access properties like .name or .message
                         const isDomException = error instanceof DOMException;
                         const isError = error instanceof Error;
 
-                        // Web Crypto API typically throws DOMException with name 'OperationError' for decryption failures
                         if ((isDomException || isError) && error.name === 'OperationError') {
-                            
                             setModalError('Incorrect current password');
                             
-                            // Reset UI state
                             saveBtn.innerText = "Update";
                             (saveBtn as HTMLButtonElement).disabled = false;
                             
-                            // Clear and focus old password field
                             oldPassInput.value = '';
                             oldPassInput.focus();
                             return; 
                         }
 
-                        // Safe error logging (avoiding 'any' cast)
                         if (isError || isDomException) {
                              console.error('Password change failed:', error.name, error.message, error);
                         } else {
                              console.error('Password change failed (unknown type):', error);
                         }
 
-                        // Re-throw if it's not the specific decryption/auth error we expect
                         throw error;
                     }
 
@@ -481,12 +621,10 @@ export class Settings {
                         newEncryptedVaultKey
                     );
                     
-                    // Success!
                     closeModal();
                     showToastMessage('Master Password updated successfully!', ToastType.SUCCESS, 3000);
 
                 } catch (error: unknown) {
-                    // Safe error logging for outer catch
                     if (error instanceof Error || error instanceof DOMException) {
                         console.error('Password change failed:', error.name, error.message);
                     } else {

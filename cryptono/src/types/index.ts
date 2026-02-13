@@ -57,3 +57,8 @@ export interface AutoFillResponse {
         fields?: Array<{ name: string; value: string; type: string }>;
     };
 }
+export interface TrustedDeviceData {
+    salt: string;
+    iv: string;
+    ciphertext: string;
+}
