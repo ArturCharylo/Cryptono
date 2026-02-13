@@ -1,6 +1,7 @@
 import { vaultRepository } from '../repositories/VaultRepository';
 import { userRepository } from '../repositories/UserRepository';
 import { cryptoService } from '../services/CryptoService';
+import { SessionService } from '../services/SessionService';
 import { buffToBase64, base64ToBuff } from '../utils/buffer';
 import { showToastMessage, ToastType } from '../utils/messages';
 import { passwordRegex } from '../validation/validate';
@@ -67,6 +68,18 @@ export class Settings {
 
                     <div class="settings-group">
                         <h2 class="group-title">Security</h2>
+                        
+                        <div class="settings-item">
+                            <div class="item-info">
+                                <span class="item-label">Quick Access (PIN)</span>
+                                <span class="item-description">Unlock vault with a short code.</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="pin-unlock-toggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
                         <div class="settings-item">
                             <div class="item-info">
                                 <span class="item-label">Clear Clipboard</span>
@@ -128,9 +141,35 @@ export class Settings {
                         </div>
                     </div>
                 </div>
+
+                <div id="pin-modal" class="modal">
+                    <div class="modal-content">
+                        <h3>Set up PIN Code</h3>
+                        <p style="margin-bottom: 15px; font-size: 0.9em; color: var(--text-secondary);">
+                            Enter a PIN to quickly unlock your vault on this device.
+                        </p>
+                        <div class="form-group">
+                            <label>New PIN</label>
+                            <input type="password" id="new-pin" class="modal-input" placeholder="Enter PIN (min 4 chars)" inputmode="numeric">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm PIN</label>
+                            <input type="password" id="confirm-pin" class="modal-input" placeholder="Repeat PIN" inputmode="numeric">
+                        </div>
+                        
+                        <p id="pin-modal-error-msg" class="modal-error-text"></p>
+
+                        <div class="modal-actions">
+                            <button id="cancel-pin" class="btn-secondary">Cancel</button>
+                            <button id="save-pin" class="btn-primary">Enable PIN</button>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         `;
     }
+
     async afterRender() {
         // Elements
         const autoLockToggle = document.getElementById('auto-lock-toggle') as HTMLInputElement;
@@ -139,6 +178,8 @@ export class Settings {
         const btnMinus = document.getElementById('decrease-lock');
         const btnPlus = document.getElementById('increase-lock');
         
+        const pinUnlockToggle = document.getElementById('pin-unlock-toggle') as HTMLInputElement;
+
         const backBtn = document.getElementById('back-to-passwords');
         const importBtn = document.getElementById('import-btn');
         const exportBtn = document.getElementById('export-btn');
@@ -154,6 +195,16 @@ export class Settings {
         const newPassInput = document.getElementById('new-pass') as HTMLInputElement;
         const confirmPassInput = document.getElementById('confirm-pass') as HTMLInputElement;
         const modalErrorMsg = document.getElementById('modal-error-msg');
+
+        // PIN Modal Elements
+        const pinModal = document.getElementById('pin-modal');
+        const cancelPinBtn = document.getElementById('cancel-pin');
+        const savePinBtn = document.getElementById('save-pin');
+        const newPinInput = document.getElementById('new-pin') as HTMLInputElement;
+        const confirmPinInput = document.getElementById('confirm-pin') as HTMLInputElement;
+        const pinModalErrorMsg = document.getElementById('pin-modal-error-msg');
+
+        const sessionService = SessionService.getInstance();
 
         // --- Load Initial State from Storage ---
         // Retrieving: theme, autoLockEnabled (bool), lockTime (number)
@@ -176,6 +227,12 @@ export class Settings {
         }
         if (lockInput) {
             lockInput.value = currentLockTime.toString();
+        }
+
+        // 3. PIN Logic - Check if configured
+        if (pinUnlockToggle) {
+            const hasPin = await sessionService.hasPinConfigured();
+            pinUnlockToggle.checked = hasPin;
         }
 
 
@@ -201,6 +258,107 @@ export class Settings {
                 await chrome.storage.local.set({ autoLockEnabled: isEnabled });
             });
         }
+
+        // Toggle PIN Unlock
+        if (pinUnlockToggle) {
+            pinUnlockToggle.addEventListener('change', async () => {
+                const isEnabled = pinUnlockToggle.checked;
+
+                if (isEnabled) {
+                    // User wants to enable PIN -> Open Modal
+                    if (pinModal) {
+                        pinModal.classList.add('active');
+                        // Clear previous
+                        if (newPinInput) newPinInput.value = '';
+                        if (confirmPinInput) confirmPinInput.value = '';
+                        if (pinModalErrorMsg) pinModalErrorMsg.style.display = 'none';
+                        if (newPinInput) newPinInput.focus();
+                    }
+                } else {
+                    // User wants to disable PIN -> Remove directly
+                    try {
+                        await sessionService.disablePinUnlock();
+                        showToastMessage('PIN login disabled', ToastType.NORMAL, 2000);
+                    } catch (e) {
+                        console.error("Failed to remove PIN", e);
+                        showToastMessage('Error disabling PIN', ToastType.ERROR, 2000);
+                        // Revert toggle if failed
+                        pinUnlockToggle.checked = true;
+                    }
+                }
+            });
+        }
+
+        // --- PIN MODAL LOGIC ---
+        
+        const closePinModal = () => {
+            if (pinModal) pinModal.classList.remove('active');
+            // If user cancels and PIN was not set (checked=true but we cancel), revert toggle
+            // We need to check if it was actually set before. 
+            sessionService.hasPinConfigured().then(hasPin => {
+                if (pinUnlockToggle && pinUnlockToggle.checked !== hasPin) {
+                    pinUnlockToggle.checked = hasPin;
+                }
+            });
+        };
+
+        if (cancelPinBtn) {
+            cancelPinBtn.addEventListener('click', closePinModal);
+        }
+
+        if (savePinBtn) {
+            savePinBtn.addEventListener('click', async () => {
+                const pin = newPinInput.value;
+                const confirm = confirmPinInput.value;
+
+                if (pinModalErrorMsg) pinModalErrorMsg.style.display = 'none';
+
+                if (!pin || !confirm) {
+                    if (pinModalErrorMsg) {
+                        pinModalErrorMsg.textContent = 'Please fill all fields';
+                        pinModalErrorMsg.style.display = 'block';
+                    }
+                    return;
+                }
+
+                if (pin !== confirm) {
+                    if (pinModalErrorMsg) {
+                        pinModalErrorMsg.textContent = 'PINs do not match';
+                        pinModalErrorMsg.style.display = 'block';
+                    }
+                    return;
+                }
+
+                if (pin.length < 4) {
+                    if (pinModalErrorMsg) {
+                        pinModalErrorMsg.textContent = 'PIN must be at least 4 digits';
+                        pinModalErrorMsg.style.display = 'block';
+                    }
+                    return;
+                }
+
+                try {
+                    savePinBtn.textContent = 'Enabling...';
+                    (savePinBtn as HTMLButtonElement).disabled = true;
+
+                    await sessionService.enablePinUnlock(pin);
+                    
+                    if (pinModal) pinModal.classList.remove('active');
+                    showToastMessage('PIN login enabled!', ToastType.SUCCESS, 3000);
+
+                } catch (err) {
+                    console.error('Failed to set PIN', err);
+                    if (pinModalErrorMsg) {
+                        pinModalErrorMsg.textContent = 'Failed to save PIN. Try again.';
+                        pinModalErrorMsg.style.display = 'block';
+                    }
+                } finally {
+                    savePinBtn.textContent = 'Enable PIN';
+                    (savePinBtn as HTMLButtonElement).disabled = false;
+                }
+            });
+        }
+
 
         // Lock counter logic (Increase/Decrease)
         const updateLockTime = async (newValue: number) => {
