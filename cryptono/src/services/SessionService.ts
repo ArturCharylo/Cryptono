@@ -98,9 +98,12 @@ export class SessionService {
         });
     }
 
-    // Nowa metoda: Zaloguj PINem
+    // Removes the PIN data from local storage
+    async disablePinUnlock(): Promise<void> {
+        await chrome.storage.local.remove(STORAGE_KEYS.TRUSTED_DEVICE_KEY);
+    }
+
     async loginWithPin(pin: string): Promise<boolean> {
-        // 1. Pobierz blob z storage.local
         const stored = await chrome.storage.local.get(STORAGE_KEYS.TRUSTED_DEVICE_KEY);
         
         // Cast the result to the interface to satisfy TypeScript
@@ -113,10 +116,10 @@ export class SessionService {
             const iv = base64ToBuff(data.iv);
             const ciphertext = base64ToBuff(data.ciphertext);
 
-            // 2. Odtwórz klucz PINu
+            // Derive the PIN key using the same parameters as when it was created
             const pinKey = await cryptoService.derivePinKey(pin, salt);
 
-            // 3. Odwiń (Unwrap) VaultKey
+            // Unwrap the vault key using the PIN-derived key
             this.vaultKey = await globalThis.crypto.subtle.unwrapKey(
                 "raw",
                 ciphertext,
@@ -127,7 +130,6 @@ export class SessionService {
                 ["encrypt", "decrypt"]
             );
 
-            // 4. Sukces! Zapisz odzyskany klucz do sesji tymczasowej (żeby działał jak normalne logowanie)
             await this.saveSession(this.vaultKey);
             
             return true;
@@ -137,7 +139,7 @@ export class SessionService {
         }
     }
     
-    // Metoda sprawdzająca czy urządzenie jest "Zaufane" (czy ma ustawiony PIN)
+    // Methode checking if PIN unlock is configured by verifying if the trusted device blob exists in local storage
     async hasPinConfigured(): Promise<boolean> {
         const stored = await chrome.storage.local.get(STORAGE_KEYS.TRUSTED_DEVICE_KEY);
         return !!stored[STORAGE_KEYS.TRUSTED_DEVICE_KEY];
@@ -147,6 +149,5 @@ export class SessionService {
     async clear(): Promise<void> {
         this.vaultKey = null;
         await chrome.storage.session.remove(this.STORAGE_KEY);
-        await chrome.storage.local.remove(STORAGE_KEYS.TRUSTED_DEVICE_KEY);
     }
 }
