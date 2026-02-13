@@ -7,6 +7,7 @@ export const DB_CONFIG = {
 export const STORAGE_KEYS = {
     MASTER: "masterPassword",
     SESSION_STORAGE_KEY: "vaultKey_JWK",
+    TRUSTED_DEVICE_KEY: "trustedDeviceBlob",
 } as const
 
 export const CRYPTO_KEYS = {
