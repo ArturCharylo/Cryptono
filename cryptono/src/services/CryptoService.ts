@@ -184,11 +184,35 @@ export class CryptoService {
          
          const encoder = new TextEncoder();
          const dataBuffer = encoder.encode(keyString + data);
-         const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', dataBuffer);
+         const hashBuffer = await globalThis.crypto.subtle.digest(CRYPTO_KEYS.ALGO_HASH, dataBuffer);
          
          return Array.from(new Uint8Array(hashBuffer))
             .map(b => b.toString(16).padStart(2, '0'))
             .join('');
+    }
+
+    async derivePinKey(pin: string, salt: BufferSource): Promise<CryptoKey> {
+        const enc = new TextEncoder();
+        const keyMaterial = await globalThis.crypto.subtle.importKey(
+            "raw",
+            enc.encode(pin),
+            { name: CRYPTO_KEYS.ALGO_KDF },
+            false,
+            ["deriveKey"]
+        );
+
+        return globalThis.crypto.subtle.deriveKey(
+            {
+                name: CRYPTO_KEYS.ALGO_KDF,
+                salt: salt,
+                iterations: CRYPTO_KEYS.PIN_ITERATIONS,
+                hash: CRYPTO_KEYS.ALGO_HASH
+            },
+            keyMaterial,
+            { name: CRYPTO_KEYS.ALGO_AES, length: 256 },
+            false,
+            ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
+        );
     }
 }
 
