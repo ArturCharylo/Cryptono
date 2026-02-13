@@ -171,6 +171,29 @@
     background: var(--bg-disabled);
 }
 
+.hidden {
+    display: none !important;
+}
+
+/* Container for switching between PIN and Password */
+.auth-switch-wrapper {
+    margin-top: 15px;
+    text-align: center;
+}
+
+/* Smaller text for secondary links, using variables */
+.small-text {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.small-text:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+}
+
 .btn-loader {
     position: absolute;
     top: 50%;
