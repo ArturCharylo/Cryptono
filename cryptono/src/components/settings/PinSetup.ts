@@ -24,20 +24,20 @@ export class PinSetup {
                 <div class="form-group">
                     <label>New PIN</label>
                     <div class="pin-input-container" id="pin-set-container-1">
-                        <input type="text" class="pin-digit pin-1" maxlength="1" inputmode="numeric" data-index="0">
-                        <input type="text" class="pin-digit pin-1" maxlength="1" inputmode="numeric" data-index="1">
-                        <input type="text" class="pin-digit pin-1" maxlength="1" inputmode="numeric" data-index="2">
-                        <input type="text" class="pin-digit pin-1" maxlength="1" inputmode="numeric" data-index="3">
+                        <input type="password" class="pin-digit pin-1" maxlength="1" inputmode="numeric" data-index="0">
+                        <input type="password" class="pin-digit pin-1" maxlength="1" inputmode="numeric" data-index="1">
+                        <input type="password" class="pin-digit pin-1" maxlength="1" inputmode="numeric" data-index="2">
+                        <input type="password" class="pin-digit pin-1" maxlength="1" inputmode="numeric" data-index="3">
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Confirm PIN</label>
                     <div class="pin-input-container" id="pin-set-container-2">
-                        <input type="text" class="pin-digit pin-2" maxlength="1" inputmode="numeric" data-index="0">
-                        <input type="text" class="pin-digit pin-2" maxlength="1" inputmode="numeric" data-index="1">
-                        <input type="text" class="pin-digit pin-2" maxlength="1" inputmode="numeric" data-index="2">
-                        <input type="text" class="pin-digit pin-2" maxlength="1" inputmode="numeric" data-index="3">
+                        <input type="password" class="pin-digit pin-2" maxlength="1" inputmode="numeric" data-index="0">
+                        <input type="password" class="pin-digit pin-2" maxlength="1" inputmode="numeric" data-index="1">
+                        <input type="password" class="pin-digit pin-2" maxlength="1" inputmode="numeric" data-index="2">
+                        <input type="password" class="pin-digit pin-2" maxlength="1" inputmode="numeric" data-index="3">
                     </div>
                 </div>
 
@@ -175,7 +175,7 @@ export class PinSetup {
         try {
             await SessionService.getInstance().disablePinUnlock();
             showToastMessage('PIN login disabled', ToastType.NORMAL, 2000);
-        } catch (_e) {
+        } catch (e) {
             showToastMessage('Error disabling PIN', ToastType.ERROR, 2000);
             if (this.toggleSwitch) this.toggleSwitch.checked = true;
         }
