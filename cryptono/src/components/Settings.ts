@@ -155,7 +155,11 @@ export class Settings {
 
             autoLockToggle.addEventListener('change', async () => {
                 const isEnabled = autoLockToggle.checked;
-                isEnabled ? autoLockControls.classList.remove('hidden') : autoLockControls.classList.add('hidden');
+                if (isEnabled) {
+                    autoLockControls.classList.remove('hidden');
+                } else {
+                    autoLockControls.classList.add('hidden');
+                }
                 await chrome.storage.local.set({ autoLockEnabled: isEnabled });
             });
         }
