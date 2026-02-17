@@ -83,7 +83,7 @@ export class PasswordChange {
             let decryptedVaultKey: CryptoKey;
             try {
                 decryptedVaultKey = await cryptoService.decryptAndImportVaultKey(currentUser.encryptedVaultKey, oldMasterKey);
-            } catch (e) {
+            } catch (_e) {
                 saveBtn.innerText = "Update";
                 saveBtn.disabled = false;
                 return this.setError('Incorrect current password');

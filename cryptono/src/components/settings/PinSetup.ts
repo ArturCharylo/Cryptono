@@ -175,7 +175,7 @@ export class PinSetup {
         try {
             await SessionService.getInstance().disablePinUnlock();
             showToastMessage('PIN login disabled', ToastType.NORMAL, 2000);
-        } catch (e) {
+        } catch (_e) {
             showToastMessage('Error disabling PIN', ToastType.ERROR, 2000);
             if (this.toggleSwitch) this.toggleSwitch.checked = true;
         }
