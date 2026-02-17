@@ -8,6 +8,9 @@ export class SessionService {
     private vaultKey: CryptoKey | null = null;
     private readonly STORAGE_KEY = STORAGE_KEYS.SESSION_STORAGE_KEY;
 
+    // Helper key for tracking last active user (needed for multi-user support)
+    private readonly LAST_USER_KEY = 'last_active_user_id';
+
     private constructor() {}
 
     static getInstance(): SessionService {
@@ -23,6 +26,24 @@ export class SessionService {
             throw new Error("Vault is locked or session expired");
         }
         return this.vaultKey;
+    }
+
+    /**
+     * Helper to get the storage key specific to a user
+     */
+    private getPinStorageKey(userId: string): string {
+        return `${STORAGE_KEYS.TRUSTED_DEVICE_KEY}_${userId}`;
+    }
+
+    /**
+     * Sets the Last Active User ID so we know which PIN to check on next boot
+     */
+    setLastActiveUser(userId: string): void {
+        localStorage.setItem(this.LAST_USER_KEY, userId);
+    }
+    
+    getLastActiveUser(): string | null {
+        return localStorage.getItem(this.LAST_USER_KEY);
     }
 
     // Save session: Export CryptoKey -> JWK -> chrome.storage.session
@@ -70,79 +91,89 @@ export class SessionService {
         }
     }
 
-    async enablePinUnlock(pin: string): Promise<void> {
+    /**
+     * Enables PIN for a SPECIFIC user.
+     * We need userId here to save it under unique key.
+     */
+    async enablePinUnlock(pin: string, userId: string): Promise<void> {
         const vaultKey = this.getKey();
         const pinSalt = cryptoService.generateSalt();
-        
         const pinKey = await cryptoService.derivePinKey(pin, pinSalt);
 
-        // Generate IV specifically for the wrapping operation
         const iv = crypto.getRandomValues(new Uint8Array(12));
-
         const wrappedKeyBuffer = await globalThis.crypto.subtle.wrapKey(
-            "raw",
-            vaultKey,
-            pinKey,
-            { name: CRYPTO_KEYS.ALGO_AES, iv: iv }
+            "raw", vaultKey, pinKey, { name: CRYPTO_KEYS.ALGO_AES, iv: iv }
         );
 
-        // Prepare the data object strictly typed
         const storageData: TrustedDeviceData = {
             salt: buffToBase64(pinSalt),
             iv: buffToBase64(iv), 
             ciphertext: buffToBase64(wrappedKeyBuffer)
         };
         
+        // Zapisz pod kluczem specyficznym dla użytkownika
         await chrome.storage.local.set({
-            [STORAGE_KEYS.TRUSTED_DEVICE_KEY]: storageData
+            [this.getPinStorageKey(userId)]: storageData
         });
+        
+        // Ustaw tego użytkownika jako ostatnio aktywnego
+        this.setLastActiveUser(userId);
     }
 
-    // Removes the PIN data from local storage
+    /**
+     * Disable PIN for current/last user
+     */
     async disablePinUnlock(): Promise<void> {
-        await chrome.storage.local.remove(STORAGE_KEYS.TRUSTED_DEVICE_KEY);
+        const lastUser = this.getLastActiveUser();
+        if (lastUser) {
+            await chrome.storage.local.remove(this.getPinStorageKey(lastUser));
+        }
     }
 
+    /**
+     * Try to login using PIN for the LAST ACTIVE USER
+     */
     async loginWithPin(pin: string): Promise<boolean> {
-        const stored = await chrome.storage.local.get(STORAGE_KEYS.TRUSTED_DEVICE_KEY);
+        const lastUserId = this.getLastActiveUser();
+        if (!lastUserId) return false;
+
+        const storageKey = this.getPinStorageKey(lastUserId);
+        const stored = await chrome.storage.local.get(storageKey);
         
-        // Cast the result to the interface to satisfy TypeScript
-        const data = stored[STORAGE_KEYS.TRUSTED_DEVICE_KEY] as TrustedDeviceData | undefined;
-        
+        const data = stored[storageKey] as TrustedDeviceData | undefined;
         if (!data) return false;
 
         try {
             const salt = base64ToBuff(data.salt);
             const iv = base64ToBuff(data.iv);
             const ciphertext = base64ToBuff(data.ciphertext);
-
-            // Derive the PIN key using the same parameters as when it was created
             const pinKey = await cryptoService.derivePinKey(pin, salt);
 
-            // Unwrap the vault key using the PIN-derived key
             this.vaultKey = await globalThis.crypto.subtle.unwrapKey(
-                "raw",
-                ciphertext,
-                pinKey,
+                "raw", ciphertext, pinKey,
                 { name: CRYPTO_KEYS.ALGO_AES, iv: iv },
                 { name: CRYPTO_KEYS.ALGO_AES },
-                true,
-                ["encrypt", "decrypt"]
+                true, ["encrypt", "decrypt"]
             );
 
             await this.saveSession(this.vaultKey);
-            
             return true;
         } catch (e) {
-            console.error("Błędny PIN", e);
+            console.error("Wrong PIN or Corrupted Data", e);
             return false;
         }
     }
     
-    // Methode checking if PIN unlock is configured by verifying if the trusted device blob exists in local storage
+    /**
+     * Checks if the LAST ACTIVE USER has a PIN configured
+     */
     async hasPinConfigured(): Promise<boolean> {
-        const stored = await chrome.storage.local.get(STORAGE_KEYS.TRUSTED_DEVICE_KEY);
-        return !!stored[STORAGE_KEYS.TRUSTED_DEVICE_KEY];
+        const lastUserId = this.getLastActiveUser();
+        if (!lastUserId) return false;
+
+        const storageKey = this.getPinStorageKey(lastUserId);
+        const stored = await chrome.storage.local.get(storageKey);
+        return !!stored[storageKey];
     }
     
     // Logout
