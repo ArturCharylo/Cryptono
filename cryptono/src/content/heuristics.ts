@@ -1,4 +1,4 @@
-// Słownik znanych skrótów używanych w starym HTML (np. RoboForm)
+// Dictionary of known abbreviations used in old HTML (e.g., RoboForm)
 const ALIAS_MAP: Record<string, string[]> = {
     'firstname': ['fname', 'frstname', 'first', 'givenname'],
     'lastname': ['lname', 'lstname', 'last', 'surname', 'familyname'],
@@ -11,22 +11,22 @@ const ALIAS_MAP: Record<string, string[]> = {
 };
 
 /**
- * Czyści tekst:
- * 1. Zamienia na małe litery.
- * 2. Usuwa CYFRY z początku ciągu (np. "02frstname" -> "frstname").
- * 3. Usuwa znaki specjalne.
+ * Normalizes text:
+ * 1. Converts to lowercase.
+ * 2. Removes DIGITS from the beginning of the string (e.g., "02frstname" -> "frstname").
+ * 3. Removes special characters.
  */
 const normalizeString = (str: string): string => {
     let clean = str.toLowerCase();
-    // Usuń prefiksy cyfrowe często używane w tabelach (np. 01name, 02address)
+    // Remove numeric prefixes often used in tables (e.g., 01name, 02address)
     clean = clean.replace(/^\d+/, ''); 
-    // Usuń wszystko co nie jest literą lub cyfrą
+    // Remove everything that is not a letter or a digit
     return clean.replace(/[^a-z0-9]/g, '');
 };
 
 /**
- * Oblicza odległość Levenshteina (ile zmian znaków trzeba, by zamienić a w b).
- * Używane do wykrywania literówek i skrótów (np. "frstname" vs "firstname").
+ * Calculates Levenshtein distance (how many character changes are needed to turn a into b).
+ * Used for detecting typos and abbreviations (e.g., "frstname" vs "firstname").
  */
 function levenshteinDistance(a: string, b: string): number {
     const matrix = [];
@@ -83,53 +83,53 @@ export function getFieldLabel(input: HTMLInputElement | HTMLTextAreaElement | HT
         if (input.placeholder) return input.placeholder;
     }
 
-    return ''; // Nie zwracamy name/id tutaj, to robimy w score
+    return ''; // We don't return name/id here, that's handled in score
 }
 
 export function calculateFieldScore(input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, vaultFieldName: string): number {
     
-    // Normalizacja nazw z sejfu i ze strony
+    // Normalize vault and page names
     const vName = normalizeString(vaultFieldName); // "First Name" -> "firstname"
     const iName = normalizeString(input.name || ''); // "02frstname" -> "frstname"
     const iId = normalizeString(input.id || '');
     const iLabel = normalizeString(getFieldLabel(input));
 
-    // Zbieramy kandydatów ze strony (name, id, label)
+    // Collect page candidates (name, id, label)
     const pageCandidates = [iName, iId, iLabel].filter(s => s.length > 0);
 
-    // --- 1. EXACT MATCH (100 pkt) ---
+    // --- 1. EXACT MATCH (100 pts) ---
     if (pageCandidates.includes(vName)) return 100;
 
-    // --- 2. ALIAS MATCH (90 pkt) ---
-    // Sprawdzamy czy vName ma znane aliasy (np. firstname -> fname)
+    // --- 2. ALIAS MATCH (90 pts) ---
+    // Check if vName has known aliases (e.g., firstname -> fname)
     if (ALIAS_MAP[vName]) {
         for (const candidate of pageCandidates) {
             if (ALIAS_MAP[vName].includes(candidate)) return 90;
         }
     }
 
-    // --- 3. CONTAINMENT MATCH (60 pkt) ---
-    // Czy "firstname" zawiera się w "customer_firstname"
+    // --- 3. CONTAINMENT MATCH (60 pts) ---
+    // E.g., check if "firstname" is contained within "customer_firstname"
     for (const candidate of pageCandidates) {
         if (candidate.includes(vName) || vName.includes(candidate)) {
-            // Unikaj fałszywych dopasowań krótkich słów (np. "id" w "mid")
+            // Avoid false matches for short words (e.g., "id" in "mid")
             if (Math.min(candidate.length, vName.length) > 3) return 60;
         }
     }
 
-    // --- 4. FUZZY MATCH (Levenshtein) (40-80 pkt) ---
-    // To jest kluczowe dla "frstname" vs "firstname"
+    // --- 4. FUZZY MATCH (Levenshtein) (40-80 pts) ---
+    // Key for matching "frstname" vs "firstname"
     let bestDist = 100;
     for (const candidate of pageCandidates) {
         const dist = levenshteinDistance(vName, candidate);
         if (dist < bestDist) bestDist = dist;
     }
 
-    // Pozwalamy na błąd w wysokości 20% długości słowa lub max 2 znaki
+    // Allow error threshold of 30% of word length or max 1 character
     const allowedErrors = Math.floor(vName.length * 0.3) || 1; 
 
     if (bestDist <= allowedErrors) {
-        // Im mniejszy dystans, tym wyższy wynik
+        // Lower distance results in higher score
         return 80 - (bestDist * 10);
     }
 
@@ -152,6 +152,7 @@ export function scoreUsernameInput(input: HTMLInputElement): number {
 
     if (name.includes('user') || name.includes('login')) score += 20;
     
+    // Ignore hidden or invisible inputs
     if (input.type === 'hidden' || input.style.display === 'none' || input.style.visibility === 'hidden') return -1;
     
     return score;

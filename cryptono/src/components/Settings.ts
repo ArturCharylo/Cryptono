@@ -342,8 +342,9 @@ export class Settings {
                 try {
                     savePinBtn.textContent = 'Enabling...';
                     (savePinBtn as HTMLButtonElement).disabled = true;
+                    const currentUser = await userRepository.getCurrentUser();
 
-                    await sessionService.enablePinUnlock(pin);
+                    await sessionService.enablePinUnlock(pin, currentUser.id);
                     
                     if (pinModal) pinModal.classList.remove('active');
                     showToastMessage('PIN login enabled!', ToastType.SUCCESS, 3000);
