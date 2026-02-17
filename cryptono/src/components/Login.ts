@@ -23,20 +23,26 @@ export class Login {
 
                 <div id="pin-section" class="hidden">
                     <form id="pin-form" class="login-form">
-                        <div class="input-group">
-                            <label for="pin-code">Quick Access PIN</label>
-                            <input type="password" id="pin-code" class="form-input" placeholder="Enter PIN code" inputmode="numeric" />
+                        <div class="input-group" style="align-items: center;">
+                            <label for="pin-digit-0" style="margin-bottom: 15px;">Enter Quick Access PIN</label>
+                            
+                            <div class="pin-input-container">
+                                <input type="text" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="0" id="pin-digit-0" />
+                                <input type="text" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="1" />
+                                <input type="text" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="2" />
+                                <input type="text" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="3" />
+                            </div>
+
                             <div class="input-error" id="pin-error"></div>
                         </div>
                         
-                        <button type="submit" class="login-btn" id="pin-submit-btn">
-                            <span class="btn-text">Unlock with PIN</span>
-                            <div class="btn-loader hidden">
-                                <div class="spinner"></div>
-                            </div>
-                        </button>
+                        <button type="submit" class="hidden" id="pin-submit-trigger"></button>
                     </form>
+                    
                     <div class="auth-switch-wrapper">
+                         <div id="pin-loading" class="hidden" style="margin-bottom: 10px;">
+                            <div class="spinner" style="margin: 0 auto;"></div>
+                        </div>
                         <a href="#" id="switch-to-pass" class="security-note-link small-text">Or log in with Master Password</a>
                     </div>
                 </div>
@@ -88,13 +94,17 @@ export class Login {
         
         // Forms & Buttons
         const loginForm = document.getElementById('login-form') as HTMLFormElement;
-        const pinForm = document.getElementById('pin-form') as HTMLFormElement;
+        const pinForm = document.getElementById('pin-form') as HTMLFormElement; // Added for safety check
         
         const passSubmitBtn = document.getElementById('pass-submit-btn') as HTMLButtonElement;
-        const pinSubmitBtn = document.getElementById('pin-submit-btn') as HTMLButtonElement;
         
         const registerLink = document.getElementById('go-to-register');
         const inputList = document.querySelectorAll('.form-input') as NodeListOf<HTMLInputElement>;
+
+        // PIN Specific Elements
+        const pinInputs = document.querySelectorAll('.pin-digit') as NodeListOf<HTMLInputElement>;
+        const pinError = document.getElementById('pin-error');
+        const pinLoading = document.getElementById('pin-loading');
 
         // Switch Links
         const switchToPassBtn = document.getElementById('switch-to-pass');
@@ -105,15 +115,15 @@ export class Login {
         const hasPin = await sessionService.hasPinConfigured();
 
         if (hasPin && pinSection && passwordSection) {
-            // Show PIN screen by default if configured (using classes)
+            // Show PIN screen by default if configured
             pinSection.classList.remove('hidden');
             passwordSection.classList.add('hidden');
             
             // Allow switching back to PIN from Password screen
             if (pinSwitchContainer) pinSwitchContainer.classList.remove('hidden');
             
-            // Focus PIN input
-            setTimeout(() => document.getElementById('pin-code')?.focus(), 100);
+            // Focus first PIN input
+            setTimeout(() => pinInputs[0]?.focus(), 100);
         }
 
         // --- NAVIGATION LISTENERS ---
@@ -139,11 +149,11 @@ export class Login {
                 e.preventDefault();
                 passwordSection.classList.add('hidden');
                 pinSection.classList.remove('hidden');
-                document.getElementById('pin-code')?.focus();
+                pinInputs[0]?.focus();
             });
         }
 
-        // Clear errors on input
+        // Clear errors on standard inputs
         for (const input of inputList) {
             input.addEventListener('input', () => {
                 setInputClassError(input, false);
@@ -154,82 +164,154 @@ export class Login {
             });
         }
 
-        // --- PIN FORM SUBMISSION ---
-        
-        pinForm?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const pinInput = document.getElementById('pin-code') as HTMLInputElement;
-            const pinError = document.getElementById('pin-error');
-            const pinValue = pinInput.value;
-            const loader = pinSubmitBtn?.querySelector('.btn-loader');
+        // --- PIN INPUT LOGIC (4 Digits) ---
 
-            if (!pinValue) {
-                if (pinError) setErrorMessage(pinError, 'Enter PIN');
-                setInputClassError(pinInput, true);
-                return;
-            }
+        const handlePinSubmit = async () => {
+            const pinValue = Array.from(pinInputs).map(i => i.value).join('');
+            
+            if (pinValue.length !== 4) return;
 
-            if (pinSubmitBtn) {
-                pinSubmitBtn.classList.add('loading');
-                pinSubmitBtn.disabled = true;
-                loader?.classList.remove('hidden'); // Show loader via class
-            }
+            // UI Loading State
+            if (pinLoading) pinLoading.classList.remove('hidden');
+            pinInputs.forEach(i => i.disabled = true);
+            if (pinError) clearField(pinError);
 
             try {
-                // Attempt login with PIN
                 const success = await sessionService.loginWithPin(pinValue);
                 
                 if (success) {
-                    // Reset attempts counter on success
                     localStorage.removeItem('pin_attempts');
                     this.navigate('/passwords');
                 } else {
-                    // Increment failed attempts
-                    let attempts = parseInt(localStorage.getItem('pin_attempts') || '0');
-                    attempts++;
-                    localStorage.setItem('pin_attempts', attempts.toString());
-
-                    if (attempts >= 3) {
-                        // Max attempts reached logic
-                        await sessionService.disablePinUnlock();
-                        localStorage.removeItem('pin_attempts'); // Cleanup counter
-                        
-                        // Switch to password view
-                        if (pinSection) pinSection.classList.add('hidden');
-                        if (passwordSection) passwordSection.classList.remove('hidden');
-                        
-                        // Hide "Switch to PIN" link since PIN is now disabled
-                        if (pinSwitchContainer) pinSwitchContainer.classList.add('hidden');
-                        
-                        document.getElementById('username')?.focus();
-                        
-                        showToastMessage('PIN login disabled due to too many failed attempts.', ToastType.ERROR, 5000);
-                    } else {
-                        // Show error with remaining attempts
-                        if (pinError) setErrorMessage(pinError, `Incorrect PIN. ${3 - attempts} attempts left.`);
-                        
-                        setInputClassError(pinInput, true);
-                        pinInput.value = ''; // Clear incorrect PIN
-                        
-                        // Simple shake animation effect
-                        pinInput.animate([
-                            { transform: 'translateX(0)' },
-                            { transform: 'translateX(-10px)' },
-                            { transform: 'translateX(10px)' },
-                            { transform: 'translateX(0)' }
-                        ], { duration: 300 });
-                    }
+                    await handlePinFailure();
                 }
             } catch (error) {
                 console.error(error);
                 showToastMessage('Error verifying PIN', ToastType.ERROR, 2000);
+                resetPinInputs();
             } finally {
-                if (pinSubmitBtn) {
-                    pinSubmitBtn.classList.remove('loading');
-                    pinSubmitBtn.disabled = false;
-                    loader?.classList.add('hidden'); // Hide loader via class
+                if (pinLoading) pinLoading.classList.add('hidden');
+                pinInputs.forEach(i => i.disabled = false);
+                
+                // Refocus if we are still on the same page (didn't navigate away)
+                if (!window.location.hash || window.location.hash === '#/') {
+                    pinInputs[0]?.focus();
                 }
             }
+        };
+
+        const handlePinFailure = async () => {
+            let attempts = parseInt(localStorage.getItem('pin_attempts') || '0');
+            attempts++;
+            localStorage.setItem('pin_attempts', attempts.toString());
+
+            if (attempts >= 3) {
+                await sessionService.disablePinUnlock();
+                localStorage.removeItem('pin_attempts');
+                
+                // Switch to password view
+                if (pinSection) pinSection.classList.add('hidden');
+                if (passwordSection) passwordSection.classList.remove('hidden');
+                if (pinSwitchContainer) pinSwitchContainer.classList.add('hidden');
+                
+                document.getElementById('username')?.focus();
+                
+                showToastMessage('PIN login disabled due to too many failed attempts.', ToastType.ERROR, 5000);
+            } else {
+                if (pinError) setErrorMessage(pinError, `Incorrect PIN. ${3 - attempts} attempts left.`);
+                
+                // Reset inputs visually
+                pinInputs.forEach(i => {
+                    i.value = '';
+                    i.classList.add('form-input-error'); // Reuse existing error class or add specific style
+                });
+
+                // Shake animation
+                const container = document.querySelector('.pin-input-container');
+                if (container) {
+                     container.animate([
+                        { transform: 'translateX(0)' },
+                        { transform: 'translateX(-10px)' },
+                        { transform: 'translateX(10px)' },
+                        { transform: 'translateX(0)' }
+                    ], { duration: 300 });
+                }
+            }
+        };
+
+        const resetPinInputs = () => {
+            pinInputs.forEach(i => {
+                i.value = '';
+                i.classList.remove('form-input-error');
+            });
+            pinInputs[0]?.focus();
+        };
+
+        pinInputs.forEach((input, index) => {
+            // 1. Handle Input (Type number)
+            input.addEventListener('input', () => {
+                const val = input.value;
+                
+                // Allow only numbers
+                if (!/^\d$/.test(val)) {
+                    input.value = '';
+                    return;
+                }
+
+                // Clear errors on typing
+                if (pinError) clearField(pinError);
+                pinInputs.forEach(i => i.classList.remove('form-input-error'));
+
+                // Move to next input
+                if (index < 3) {
+                    pinInputs[index + 1].focus();
+                } else {
+                    // If it's the last input, submit
+                    handlePinSubmit();
+                }
+            });
+
+            // 2. Handle Keydown (Backspace, Arrows)
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !input.value && index > 0) {
+                    // Move back if empty and backspace pressed
+                    pinInputs[index - 1].focus();
+                }
+                if (e.key === 'ArrowLeft' && index > 0) {
+                    pinInputs[index - 1].focus();
+                }
+                if (e.key === 'ArrowRight' && index < 3) {
+                    pinInputs[index + 1].focus();
+                }
+            });
+
+            // 3. Handle Paste (Full code)
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const pasteData = e.clipboardData?.getData('text') || '';
+                // Extract only numbers, take first 4
+                const numbers = pasteData.replace(/\D/g, '').slice(0, 4).split('');
+                
+                if (numbers.length > 0) {
+                    numbers.forEach((num, i) => {
+                        if (pinInputs[i]) pinInputs[i].value = num;
+                    });
+                    
+                    // Focus logic after paste
+                    if (numbers.length === 4) {
+                        pinInputs[3].focus();
+                        handlePinSubmit();
+                    } else if (numbers.length < 4) {
+                        pinInputs[numbers.length].focus();
+                    }
+                }
+            });
+        });
+
+        // Prevent standard form submission for PIN form to avoid page reload,
+        // although we handle logic via input events mostly.
+        pinForm?.addEventListener('submit', (e) => {
+            e.preventDefault();
         });
 
         // --- MASTER PASSWORD FORM SUBMISSION ---
@@ -247,7 +329,7 @@ export class Login {
             if (!username || !password) {
                 for (const input of inputList) {
                     // Skip PIN input validation in this loop
-                    if (input.id === 'pin-code') continue;
+                    if (input.classList.contains('pin-digit')) continue;
 
                     const errorDiv = document.getElementById(`${input.id}-error`);
                     if (errorDiv) {
