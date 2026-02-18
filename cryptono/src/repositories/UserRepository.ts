@@ -56,6 +56,9 @@ export class UserRepository {
                 // Save key to persistent session storage
                 try {
                     await SessionService.getInstance().saveSession(vaultKey);
+                    
+                    SessionService.getInstance().setLastActiveUser(newUser.id);
+                    
                     resolve();
                 } catch (_e) {
                     reject(new Error("Failed to start session"));
@@ -117,6 +120,8 @@ export class UserRepository {
                     
                     await SessionService.getInstance().saveSession(vaultKey);
 
+                    SessionService.getInstance().setLastActiveUser(userRecord.id);
+
                     resolve();
 
                 } catch (error) {
@@ -176,6 +181,22 @@ export class UserRepository {
                 putReq.onerror = () => reject(putReq.error);
             };
             getReq.onerror = () => reject(getReq.error);
+        });
+    }
+
+    async getUserById(userId: string): Promise<User | null> {
+        await databaseContext.ensureInit();
+        return new Promise((resolve, reject) => {
+            const db = databaseContext.db;
+            if (!db) return reject(new Error("DB error"));
+            
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const request = transaction.objectStore(STORE_NAME).get(userId);
+            
+            request.onsuccess = () => {
+                resolve(request.result as User || null);
+            };
+            request.onerror = () => resolve(null);
         });
     }
 }

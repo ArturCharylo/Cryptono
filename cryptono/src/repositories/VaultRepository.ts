@@ -1,6 +1,7 @@
 import { databaseContext } from '../services/DatabaseContext';
 import { cryptoService } from '../services/CryptoService';
 import { SessionService } from '../services/SessionService'; // Import SessionService
+import { userRepository } from './UserRepository'; // Import UserRepository to get current user ID
 import { normalizeUrl } from '../utils/urlHelper';
 import { DB_CONFIG } from '../constants/constants';
 import type { VaultItem, EncryptedVaultItem } from '../types/index';
@@ -21,6 +22,9 @@ export class VaultRepository {
         
         // Get the decrypted Vault Key from memory
         const vaultKey = SessionService.getInstance().getKey();
+
+        // Get current user to assign ownership
+        const currentUser = await userRepository.getCurrentUser();
 
         // Generate Blind Index Hash for URL using the Vault Key
         const cleanUrl = normalizeUrl(item.url);
@@ -43,6 +47,7 @@ export class VaultRepository {
         // Here we encrypt all necessary fields of VaultItem before passing to indexedDB
         const encryptedItem: EncryptedVaultItem = {
             id: item.id,
+            userId: currentUser.id, // Link item to specific user
             url: encryptedUrl,
             urlHash: urlHash, // Store the hash for indexing
             username: encryptedUsername,
@@ -70,6 +75,16 @@ export class VaultRepository {
         await databaseContext.ensureInit();
         const vaultKey = SessionService.getInstance().getKey();
 
+        // We need to know who is asking to filter out items belonging to others
+        let currentUserId: string;
+        try {
+            const user = await userRepository.getCurrentUser();
+            currentUserId = user.id;
+        } catch (e) {
+            console.error("Cannot get current user for filtering vault items", e);
+            return [];
+        }
+
         return new Promise((resolve, reject) => {
             const db = databaseContext.db;
             if (!db) return reject(new Error("Database not initialized"));
@@ -81,8 +96,10 @@ export class VaultRepository {
             request.onsuccess = async () => {
                 const allResults = request.result || [];
 
-                // Filter out user records using the updated Type Guard
-                const encryptedItems = allResults.filter(isEncryptedVaultItem);
+                // Filter out user records using the Type Guard AND filter by userId
+                const encryptedItems = allResults.filter(item => 
+                    isEncryptedVaultItem(item) && item.userId === currentUserId
+                );
 
                 try {
                     // Decode each field of vault items
@@ -150,6 +167,7 @@ export class VaultRepository {
     async updateItem(item: VaultItem): Promise<void> {
         await databaseContext.ensureInit();
         const vaultKey = SessionService.getInstance().getKey();
+        const currentUser = await userRepository.getCurrentUser();
 
         // Calculate new Blind Index Hash
         const cleanUrl = normalizeUrl(item.url);
@@ -171,6 +189,7 @@ export class VaultRepository {
 
         const encryptedItem: EncryptedVaultItem = {
             id: item.id, // keep the same ID
+            userId: currentUser.id, // Ensure ownership is maintained
             url: encryptedUrl,
             urlHash: urlHash, // Update hash
             username: encryptedUsername,
@@ -213,6 +232,8 @@ export class VaultRepository {
                      return;
                  }
                  try {
+                     // Note: We could check userId here, but decryption will fail anyway if keys mismatch
+                     
                      // Decrypt optional fields for single item
                      let decryptedFields: VaultItem['fields'] = undefined;
                      if (encryptedItem.fields) {
@@ -247,6 +268,14 @@ export class VaultRepository {
     async findItemByUrlAndUsername(url: string, username: string): Promise<VaultItem | null> {
         await databaseContext.ensureInit();
         const vaultKey = SessionService.getInstance().getKey();
+        
+        let currentUserId: string;
+        try {
+            const user = await userRepository.getCurrentUser();
+            currentUserId = user.id;
+        } catch(_e) {
+            return null;
+        }
 
         const cleanCurrentUrl = normalizeUrl(url);
         const urlHash = await cryptoService.getBlindIndex(vaultKey, cleanCurrentUrl);
@@ -263,12 +292,15 @@ export class VaultRepository {
             const request = index.getAll(urlHash);
 
             request.onsuccess = async () => {
-                const encryptedItems = request.result as EncryptedVaultItem[];
+                const allResults = request.result as EncryptedVaultItem[];
 
-                if (!encryptedItems || encryptedItems.length === 0) {
+                if (!allResults || allResults.length === 0) {
                     resolve(null);
                     return;
                 }
+
+                // Filter by userId FIRST to avoid trying to decrypt other users' data
+                const encryptedItems = allResults.filter(item => item.userId === currentUserId);
 
                 // Check usernames after filtering by URL hash
                 for (const item of encryptedItems) {
@@ -314,6 +346,15 @@ export class VaultRepository {
     async getItemsByUrlHash(urlHash: string): Promise<EncryptedVaultItem[]> {
         await databaseContext.ensureInit();
         const db = databaseContext.db;
+        
+        // We need user context here too, because autofill shouldn't suggest other users' items
+        let currentUserId: string;
+        try {
+            const user = await userRepository.getCurrentUser();
+            currentUserId = user.id;
+        } catch (_e) {
+             return [];
+        }
 
         return new Promise((resolve, reject) => {
             if (!db) return reject(new Error("Database not initialized"));
@@ -327,8 +368,10 @@ export class VaultRepository {
 
             request.onsuccess = () => {
                 const results = request.result as EncryptedVaultItem[];
-                // Filter ensuring we only get items, not user record (just in case)
-                const items = results.filter(isEncryptedVaultItem);
+                // Filter ensuring we only get items, not user record AND matching userId
+                const items = results.filter(item => 
+                    isEncryptedVaultItem(item) && item.userId === currentUserId
+                );
                 resolve(items);
             };
 
