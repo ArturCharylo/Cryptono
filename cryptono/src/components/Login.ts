@@ -13,6 +13,25 @@ export class Login {
 
     async preRenderDataFetch() {
         const sessionService = SessionService.getInstance();
+
+        const candidateId = sessionService.getLastActiveUser();
+        
+        if (candidateId) {
+            try {
+                const user = await userRepository.getUserById(candidateId);
+                
+                if (user) {
+                    this.lastActiveUserId = candidateId;
+                } else {
+                    console.warn(`User ID ${candidateId} found in cache but not in DB. Clearing.`);
+                    sessionService.clearLastActiveUser();
+                    this.lastActiveUserId = null;
+                }
+            } catch (e) {
+                console.error("Error verifying user existence:", e);
+                this.lastActiveUserId = null;
+            }
+        }
         this.lastActiveUserId = sessionService.getLastActiveUser();
     }
 

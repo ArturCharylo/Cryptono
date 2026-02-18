@@ -91,6 +91,10 @@ export class SessionService {
         }
     }
 
+    clearLastActiveUser(): void {
+        localStorage.removeItem(this.LAST_USER_KEY);
+    }
+
     /**
      * Enables PIN for a SPECIFIC user.
      * We need userId here to save it under unique key.
