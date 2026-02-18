@@ -5,12 +5,19 @@ import { SessionService } from '../services/SessionService';
 
 export class Login {
     navigate: (path: string) => void;
+    private lastActiveUserId: string | null = null; 
 
     constructor(navigate: (path: string) => void) {
         this.navigate = navigate;
     }
 
+    async preRenderDataFetch() {
+        const sessionService = SessionService.getInstance();
+        this.lastActiveUserId = sessionService.getLastActiveUser();
+    }
+
     render() {
+
         return `
             <div class="container">
                 <div class="header">
@@ -22,20 +29,21 @@ export class Login {
                 </div>
 
                 <div id="pin-section" class="hidden">
+                    <p class="welcome-user">Welcome back!</p>
+                    
                     <form id="pin-form" class="login-form">
                         <div class="input-group" style="align-items: center;">
                             <label for="pin-digit-0" style="margin-bottom: 15px;">Enter Quick Access PIN</label>
                             
                             <div class="pin-input-container">
-                                <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="0" id="pin-digit-0" />
-                                <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="1" />
-                                <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="2" />
-                                <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="3" />
+                                <input type="text" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="0" id="pin-digit-0" />
+                                <input type="text" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="1" />
+                                <input type="text" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="2" />
+                                <input type="text" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="3" />
                             </div>
 
                             <div class="input-error" id="pin-error"></div>
                         </div>
-                        
                         <button type="submit" class="hidden" id="pin-submit-trigger"></button>
                     </form>
                     
@@ -43,7 +51,9 @@ export class Login {
                          <div id="pin-loading" class="hidden" style="margin-bottom: 10px;">
                             <div class="spinner" style="margin: 0 auto;"></div>
                         </div>
-                        <a href="#" id="switch-to-pass" class="security-note-link small-text">Or log in with Master Password</a>
+                        <a href="#" id="switch-account" class="security-note-link small-text">Not you? Switch Account</a>
+                        <br/>
+                        <a href="#" id="switch-to-pass" class="security-note-link small-text" style="margin-top:8px; display:inline-block;">Or log in with Master Password</a>
                     </div>
                 </div>
 
@@ -51,7 +61,7 @@ export class Login {
                     <form class="login-form" id="login-form" name="login-form">
                         <div class="input-group">
                             <label for="username">Username</label>
-                            <input type="text" placeholder="Enter your username" id="username" name="username" class="form-input"/>
+                            <input type="text" placeholder="Enter your username" id="username" name="username" class="form-input" />
                             <div class="input-error" id="username-error"></div>
                         </div>
 
@@ -85,6 +95,10 @@ export class Login {
     }
 
     async afterRender() {
+        if (!this.lastActiveUserId) {
+             await this.preRenderDataFetch();
+        }
+
         const sessionService = SessionService.getInstance();
         
         // Sections
@@ -94,7 +108,7 @@ export class Login {
         
         // Forms & Buttons
         const loginForm = document.getElementById('login-form') as HTMLFormElement;
-        const pinForm = document.getElementById('pin-form') as HTMLFormElement; // Added for safety check
+        const pinForm = document.getElementById('pin-form') as HTMLFormElement; 
         
         const passSubmitBtn = document.getElementById('pass-submit-btn') as HTMLButtonElement;
         
@@ -107,23 +121,24 @@ export class Login {
         const pinLoading = document.getElementById('pin-loading');
 
         // Switch Links
+        const switchAccountBtn = document.getElementById('switch-account');
         const switchToPassBtn = document.getElementById('switch-to-pass');
         const switchToPinBtn = document.getElementById('switch-to-pin');
 
         // --- PIN DETECTION LOGIC ---
-        // Check if PIN is configured and show appropriate screen
         const hasPin = await sessionService.hasPinConfigured();
 
-        if (hasPin && pinSection && passwordSection) {
-            // Show PIN screen by default if configured
+        if (hasPin && pinSection && passwordSection && this.lastActiveUserId) {
             pinSection.classList.remove('hidden');
             passwordSection.classList.add('hidden');
             
-            // Allow switching back to PIN from Password screen
             if (pinSwitchContainer) pinSwitchContainer.classList.remove('hidden');
             
-            // Focus first PIN input
             setTimeout(() => pinInputs[0]?.focus(), 100);
+        } else {
+            if (pinSection) pinSection.classList.add('hidden');
+            if (passwordSection) passwordSection.classList.remove('hidden');
+            if (pinSwitchContainer) pinSwitchContainer.classList.add('hidden');
         }
 
         // --- NAVIGATION LISTENERS ---
@@ -132,6 +147,19 @@ export class Login {
             registerLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.navigate('/register');
+            });
+        }
+
+        // --- SWITCH ACCOUNT HANDLER ---
+        if (switchAccountBtn) {
+            switchAccountBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                pinSection?.classList.add('hidden');
+                passwordSection?.classList.remove('hidden');
+                pinSwitchContainer?.classList.add('hidden'); 
+                
+                const userField = document.getElementById('username') as HTMLInputElement;
+                if(userField) userField.focus();
             });
         }
 
@@ -171,7 +199,6 @@ export class Login {
             
             if (pinValue.length !== 4) return;
 
-            // UI Loading State
             if (pinLoading) pinLoading.classList.remove('hidden');
             pinInputs.forEach(i => i.disabled = true);
             if (pinError) clearField(pinError);
@@ -193,7 +220,6 @@ export class Login {
                 if (pinLoading) pinLoading.classList.add('hidden');
                 pinInputs.forEach(i => i.disabled = false);
                 
-                // Refocus if we are still on the same page (didn't navigate away)
                 if (!window.location.hash || window.location.hash === '#/') {
                     pinInputs[0]?.focus();
                 }
@@ -209,7 +235,6 @@ export class Login {
                 await sessionService.disablePinUnlock();
                 localStorage.removeItem('pin_attempts');
                 
-                // Switch to password view
                 if (pinSection) pinSection.classList.add('hidden');
                 if (passwordSection) passwordSection.classList.remove('hidden');
                 if (pinSwitchContainer) pinSwitchContainer.classList.add('hidden');
@@ -220,13 +245,11 @@ export class Login {
             } else {
                 if (pinError) setErrorMessage(pinError, `Incorrect PIN. ${3 - attempts} attempts left.`);
                 
-                // Reset inputs visually
                 pinInputs.forEach(i => {
                     i.value = '';
-                    i.classList.add('form-input-error'); // Reuse existing error class or add specific style
+                    i.classList.add('form-input-error'); 
                 });
 
-                // Shake animation
                 const container = document.querySelector('.pin-input-container');
                 if (container) {
                      container.animate([
@@ -252,21 +275,17 @@ export class Login {
             input.addEventListener('input', () => {
                 const val = input.value;
                 
-                // Allow only numbers
                 if (!/^\d$/.test(val)) {
                     input.value = '';
                     return;
                 }
 
-                // Clear errors on typing
                 if (pinError) clearField(pinError);
                 pinInputs.forEach(i => i.classList.remove('form-input-error'));
 
-                // Move to next input
                 if (index < 3) {
                     pinInputs[index + 1].focus();
                 } else {
-                    // If it's the last input, submit
                     handlePinSubmit();
                 }
             });
@@ -274,7 +293,6 @@ export class Login {
             // 2. Handle Keydown (Backspace, Arrows)
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Backspace' && !input.value && index > 0) {
-                    // Move back if empty and backspace pressed
                     pinInputs[index - 1].focus();
                 }
                 if (e.key === 'ArrowLeft' && index > 0) {
@@ -289,7 +307,6 @@ export class Login {
             input.addEventListener('paste', (e) => {
                 e.preventDefault();
                 const pasteData = e.clipboardData?.getData('text') || '';
-                // Extract only numbers, take first 4
                 const numbers = pasteData.replace(/\D/g, '').slice(0, 4).split('');
                 
                 if (numbers.length > 0) {
@@ -297,7 +314,6 @@ export class Login {
                         if (pinInputs[i]) pinInputs[i].value = num;
                     });
                     
-                    // Focus logic after paste
                     if (numbers.length === 4) {
                         pinInputs[3].focus();
                         handlePinSubmit();
@@ -308,8 +324,6 @@ export class Login {
             });
         });
 
-        // Prevent standard form submission for PIN form to avoid page reload,
-        // although we handle logic via input events mostly.
         pinForm?.addEventListener('submit', (e) => {
             e.preventDefault();
         });
@@ -328,7 +342,6 @@ export class Login {
 
             if (!username || !password) {
                 for (const input of inputList) {
-                    // Skip PIN input validation in this loop
                     if (input.classList.contains('pin-digit')) continue;
 
                     const errorDiv = document.getElementById(`${input.id}-error`);
@@ -347,7 +360,6 @@ export class Login {
                 return;
             }
             
-            // Set loading state
             if (passSubmitBtn) {
                 passSubmitBtn.classList.add('loading');
                 passSubmitBtn.disabled = true;
@@ -359,14 +371,12 @@ export class Login {
 
                 this.navigate('/passwords');
             } catch (error) {
-                // Catch error and display to user
                 if (error instanceof Error) {
                     showToastMessage(error.message, ToastType.ERROR, error.message.length > 50 ? 6000 : 2500);
                 } else {
                     showToastMessage('An unexpected error occurred.', ToastType.ERROR, 2500);
                 }
             } finally {
-                // Reset loading state
                 if (passSubmitBtn) {
                     passSubmitBtn.classList.remove('loading');
                     passSubmitBtn.disabled = false;
@@ -376,7 +386,6 @@ export class Login {
         });
     }
 
-    // This function only handles validation -> Pass or error
     async authenticate(username: string, password: string): Promise<void> {
         const validations = loginValidation(username, password);
 
@@ -396,7 +405,6 @@ export class Login {
             throw new Error(errors.join('\n')); 
         }
 
-        // Login
         try {
             await userRepository.Login(username, password);
         } catch (err) {

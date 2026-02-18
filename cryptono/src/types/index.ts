@@ -26,6 +26,7 @@ export interface VaultItem {
 // This interface is not neccessary but rather a helpful util, to avoid mismatch in later code
 // This is roughly how the content is stored ("base64Salt:base64IV:base64Content")
 export interface EncryptedVaultItem {
+    userId?: string;
     id: string;
     url: string;      // Ciphertext
     urlHash: string;  // Hashed URL for faster searching
