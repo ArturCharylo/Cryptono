@@ -137,6 +137,7 @@ export class Login {
         const pinLoading = document.getElementById('pin-loading');
 
         // Switch Links
+        const switchAccountBtn = document.getElementById('switch-account');
         const switchToPassBtn = document.getElementById('switch-to-pass');
         const switchToPinBtn = document.getElementById('switch-to-pin');
 
@@ -162,6 +163,19 @@ export class Login {
             registerLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.navigate('/register');
+            });
+        }
+
+        // --- SWITCH ACCOUNT HANDLER ---
+        if (switchAccountBtn) {
+            switchAccountBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                pinSection?.classList.add('hidden');
+                passwordSection?.classList.remove('hidden');
+                pinSwitchContainer?.classList.add('hidden'); 
+                
+                const userField = document.getElementById('username') as HTMLInputElement;
+                if(userField) userField.focus();
             });
         }
 
