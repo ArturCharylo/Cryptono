@@ -29,7 +29,7 @@ export default defineConfig({
         },
         {
           // Copy the compressor WASM file to the dist folder
-          src: 'src/wasm/compressor_bg.wasm', 
+          src: 'src/wasm/cryptono_zip_bg.wasm', 
           dest: '.' 
         },
       ]
