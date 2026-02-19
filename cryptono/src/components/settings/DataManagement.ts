@@ -57,7 +57,7 @@ export class DataManagement {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.bin,.json'; 
-        input.classList.add('hidden'); 
+        input.classList.add('hidden'); // class instead of style display:none
 
         input.onchange = async (e: Event) => {
             const target = e.target as HTMLInputElement;
@@ -68,20 +68,28 @@ export class DataManagement {
 
             reader.onload = async (event) => {
                 try {
-                    const resultBuffer = event.target?.result as ArrayBuffer;
+                    let jsonString = '';
 
-                    await initWasm('/cryptono_zip_bg.wasm');
+                    // Check if the uploaded file is a standard JSON
+                    if (file.name.endsWith('.json')) {
+                        jsonString = event.target?.result as string;
+                    } else {
+                        // Handle compressed binary files
+                        const resultBuffer = event.target?.result as ArrayBuffer;
+                        
+                        await initWasm('/cryptono_zip_bg.wasm');
 
-                    const uint8Array = new Uint8Array(resultBuffer);
+                        const uint8Array = new Uint8Array(resultBuffer);
+                        
+                        // Decompress the data
+                        const decompressedBytes = decompress_brotli(uint8Array);
+                        
+                        // Convert Uint8Array back to string
+                        const decoder = new TextDecoder();
+                        jsonString = decoder.decode(decompressedBytes);
+                    }
                     
-                    // Decompress the data
-                    const decompressedBytes = decompress_brotli(uint8Array);
-                    
-                    // Convert Uint8Array back to string
-                    const decoder = new TextDecoder();
-                    const decompressedStr = decoder.decode(decompressedBytes);
-                    
-                    const importedItems = JSON.parse(decompressedStr);
+                    const importedItems = JSON.parse(jsonString);
 
                     if (!Array.isArray(importedItems)) throw new Error('Invalid format');
 
@@ -122,7 +130,12 @@ export class DataManagement {
                 }
             };
             
-            reader.readAsArrayBuffer(file);
+            // Choose the correct reading method based on the file extension
+            if (file.name.endsWith('.json')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
         };
         document.body.appendChild(input);
         input.click();
