@@ -63,3 +63,13 @@ export interface TrustedDeviceData {
     iv: string;
     ciphertext: string;
 }
+// Interface for items imported from external sources (JSON, CSV, etc.)
+export interface ImportedVaultItem {
+    url?: string;
+    site?: string;    // Some password managers export 'site' instead of 'url'
+    username?: string;
+    login?: string;   // Some password managers export 'login' instead of 'username'
+    password?: string;
+    note?: string;
+    fields?: Array<{ name: string; value: string; type: string }>;
+}
