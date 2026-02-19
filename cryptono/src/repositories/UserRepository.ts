@@ -132,26 +132,26 @@ export class UserRepository {
 
             request.onerror = () => reject(new Error('Database error during login'));
         });
-    }
-    async getCurrentUser(): Promise<User> {
-        await databaseContext.ensureInit();
-        return new Promise((resolve, reject) => {
-            const db = databaseContext.db;
-            if (!db) return reject(new Error("DB error"));
-            
-            const transaction = db.transaction([STORE_NAME], 'readonly');
-            const cursorRequest = transaction.objectStore(STORE_NAME).openCursor();
-            
-            cursorRequest.onsuccess = (e) => {
-                const cursor = (e.target as IDBRequest).result;
-                if (cursor) {
-                    resolve(cursor.value as User);
-                } else {
-                    reject(new Error("No user found"));
-                }
-            };
-            cursorRequest.onerror = () => reject(new Error("Failed to fetch user"));
-        });
+        }
+        async getCurrentUser(): Promise<User> {
+            await databaseContext.ensureInit();
+        
+        // Retrieve the ID of the currently logged-in user
+        const activeUserId = SessionService.getInstance().getLastActiveUser();
+        
+        if (!activeUserId) {
+            throw new Error("No active session found");
+        }
+
+        // Fetch the specific user from the database
+        const user = await this.getUserById(activeUserId);
+        
+        if (!user) {
+            throw new Error("User not found");
+        }
+        
+        return user;
+
     }
 
     async updateMasterPasswordProtection(userId: string, newSaltBase64: string, newEncryptedVaultKey: string): Promise<void> {
