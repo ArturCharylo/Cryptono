@@ -48,7 +48,6 @@ export class Login {
                 </div>
 
                 <div id="pin-section" class="hidden">
-                    <p class="welcome-user">Welcome back!</p>
                     
                     <form id="pin-form" class="login-form">
                         <div class="input-group" style="align-items: center;">
@@ -70,8 +69,6 @@ export class Login {
                          <div id="pin-loading" class="hidden" style="margin-bottom: 10px;">
                             <div class="spinner" style="margin: 0 auto;"></div>
                         </div>
-                        <a href="#" id="switch-account" class="security-note-link small-text">Not you? Switch Account</a>
-                        <br/>
                         <a href="#" id="switch-to-pass" class="security-note-link small-text" style="margin-top:8px; display:inline-block;">Or log in with Master Password</a>
                     </div>
                 </div>
@@ -140,7 +137,6 @@ export class Login {
         const pinLoading = document.getElementById('pin-loading');
 
         // Switch Links
-        const switchAccountBtn = document.getElementById('switch-account');
         const switchToPassBtn = document.getElementById('switch-to-pass');
         const switchToPinBtn = document.getElementById('switch-to-pin');
 
@@ -166,19 +162,6 @@ export class Login {
             registerLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.navigate('/register');
-            });
-        }
-
-        // --- SWITCH ACCOUNT HANDLER ---
-        if (switchAccountBtn) {
-            switchAccountBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                pinSection?.classList.add('hidden');
-                passwordSection?.classList.remove('hidden');
-                pinSwitchContainer?.classList.add('hidden'); 
-                
-                const userField = document.getElementById('username') as HTMLInputElement;
-                if(userField) userField.focus();
             });
         }
 
