@@ -26,7 +26,12 @@ export default defineConfig({
         {
           src: 'node_modules/argon2-extension-mv3/dist/argon2_wasm.wasm',
           dest: '.' 
-        }
+        },
+        {
+          // Copy the compressor WASM file to the dist folder
+          src: 'src/wasm/compressor_bg.wasm', 
+          dest: '.' 
+        },
       ]
     }),
     {
