@@ -1,5 +1,6 @@
 import { vaultRepository } from '../../repositories/VaultRepository';
 import { showToastMessage, ToastType } from '../../utils/messages';
+import initWasm, { compress_brotli, decompress_brotli } from '../../wasm/cryptono_zip';
 
 export class DataManagement {
     constructor(private importBtnId: string, private exportBtnId: string) {}
@@ -21,11 +22,26 @@ export class DataManagement {
             }
 
             const dataStr = JSON.stringify(items, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
+
+            // The imported WASM module is written in Rust and compiled to WebAssembly.
+            // It provides Brotli compression and decompression functions.
+            await initWasm('/cryptono_zip_bg.wasm');
+
+            // Convert string to Uint8Array for the Rust function
+            const encoder = new TextEncoder();
+            const dataBytes = encoder.encode(dataStr);
+
+            // Compress the data using Brotli (quality: 11 is usually the max/standard for Brotli)
+            const compressedData = compress_brotli(dataBytes, 11);
+
+            // Wrap the data in a new standard Uint8Array to satisfy TypeScript strict types
+            const standardBuffer = new Uint8Array(compressedData);
+
+            const blob = new Blob([standardBuffer], { type: 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `cryptono_backup_${new Date().toISOString().slice(0, 10)}.json`;
+            a.download = `cryptono_backup_${new Date().toISOString().slice(0, 10)}.bin`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -40,8 +56,8 @@ export class DataManagement {
     private handleImport() {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.json';
-        input.classList.add('hidden'); // class instead of style display:none
+        input.accept = '.bin,.json'; 
+        input.classList.add('hidden'); 
 
         input.onchange = async (e: Event) => {
             const target = e.target as HTMLInputElement;
@@ -52,8 +68,20 @@ export class DataManagement {
 
             reader.onload = async (event) => {
                 try {
-                    const jsonContent = event.target?.result as string;
-                    const importedItems = JSON.parse(jsonContent);
+                    const resultBuffer = event.target?.result as ArrayBuffer;
+
+                    await initWasm('/cryptono_zip_bg.wasm');
+
+                    const uint8Array = new Uint8Array(resultBuffer);
+                    
+                    // Decompress the data
+                    const decompressedBytes = decompress_brotli(uint8Array);
+                    
+                    // Convert Uint8Array back to string
+                    const decoder = new TextDecoder();
+                    const decompressedStr = decoder.decode(decompressedBytes);
+                    
+                    const importedItems = JSON.parse(decompressedStr);
 
                     if (!Array.isArray(importedItems)) throw new Error('Invalid format');
 
@@ -93,7 +121,8 @@ export class DataManagement {
                     showToastMessage('Failed to import file.', ToastType.ERROR, 3000);
                 }
             };
-            reader.readAsText(file);
+            
+            reader.readAsArrayBuffer(file);
         };
         document.body.appendChild(input);
         input.click();
