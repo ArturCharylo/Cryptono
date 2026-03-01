@@ -54,10 +54,10 @@ export class Login {
                             <label for="pin-digit-0" style="margin-bottom: 15px;">Enter Quick Access PIN</label>
                             
                             <div class="pin-input-container">
-                                <input type="text" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="0" id="pin-digit-0" />
-                                <input type="text" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="1" />
-                                <input type="text" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="2" />
-                                <input type="text" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="3" />
+                                <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="0" id="pin-digit-0" />
+                                <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="1" />
+                                <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="2" />
+                                <input type="password" class="pin-digit" maxlength="1" inputmode="numeric" autocomplete="off" data-index="3" />
                             </div>
 
                             <div class="input-error" id="pin-error"></div>
