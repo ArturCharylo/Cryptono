@@ -14,6 +14,14 @@ export const initAutoSave = () => {
 
         if (!passwordInput || !passwordInput.value) return;
 
+        // Security check: If the password field was autofilled by the extension, skip autosave to avoid saving potentially incorrect credentials
+        if (passwordInput.dataset.cryptonoAutofilled === 'true') {
+            console.log('Cryptono: Skipping AutoSave, credentials were autofilled by extension.');
+            return;
+        }
+
+        if (!passwordInput || !passwordInput.value) return;
+
         let usernameInput: HTMLInputElement | null = null;
         let bestScore = -1;
 
