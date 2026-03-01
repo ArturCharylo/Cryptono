@@ -35,15 +35,20 @@ export class SessionService {
         return `${STORAGE_KEYS.TRUSTED_DEVICE_KEY}_${userId}`;
     }
 
-    /**
+  /**
      * Sets the Last Active User ID so we know which PIN to check on next boot
      */
-    setLastActiveUser(userId: string): void {
-        localStorage.setItem(this.LAST_USER_KEY, userId);
+    async setLastActiveUser(userId: string): Promise<void> {
+        await chrome.storage.session.set({ [this.LAST_USER_KEY]: userId });
     }
     
-    getLastActiveUser(): string | null {
-        return localStorage.getItem(this.LAST_USER_KEY);
+    async getLastActiveUser(): Promise<string | null> {
+        const data = await chrome.storage.session.get(this.LAST_USER_KEY);
+        return (data[this.LAST_USER_KEY] as string | undefined) || null;
+    }
+
+    async clearLastActiveUser(): Promise<void> {
+        await chrome.storage.session.remove(this.LAST_USER_KEY);
     }
 
     // Save session: Export CryptoKey -> JWK -> chrome.storage.session
@@ -91,10 +96,6 @@ export class SessionService {
         }
     }
 
-    clearLastActiveUser(): void {
-        localStorage.removeItem(this.LAST_USER_KEY);
-    }
-
     /**
      * Enables PIN for a SPECIFIC user.
      * We need userId here to save it under unique key.
@@ -115,20 +116,20 @@ export class SessionService {
             ciphertext: buffToBase64(wrappedKeyBuffer)
         };
         
-        // Zapisz pod kluczem specyficznym dla użytkownika
+        // Save the wrapped key and parameters to local storage under a user-specific key
         await chrome.storage.local.set({
             [this.getPinStorageKey(userId)]: storageData
         });
         
-        // Ustaw tego użytkownika jako ostatnio aktywnego
-        this.setLastActiveUser(userId);
+        // Set the last active user so we know which PIN to check on next boot
+        await this.setLastActiveUser(userId);
     }
 
     /**
      * Disable PIN for current/last user
      */
     async disablePinUnlock(): Promise<void> {
-        const lastUser = this.getLastActiveUser();
+        const lastUser = await this.getLastActiveUser();
         if (lastUser) {
             await chrome.storage.local.remove(this.getPinStorageKey(lastUser));
         }
@@ -138,7 +139,7 @@ export class SessionService {
      * Try to login using PIN for the LAST ACTIVE USER
      */
     async loginWithPin(pin: string): Promise<boolean> {
-        const lastUserId = this.getLastActiveUser();
+        const lastUserId = await this.getLastActiveUser();
         if (!lastUserId) return false;
 
         const storageKey = this.getPinStorageKey(lastUserId);
@@ -172,7 +173,7 @@ export class SessionService {
      * Checks if the LAST ACTIVE USER has a PIN configured
      */
     async hasPinConfigured(): Promise<boolean> {
-        const lastUserId = this.getLastActiveUser();
+        const lastUserId = await this.getLastActiveUser();
         if (!lastUserId) return false;
 
         const storageKey = this.getPinStorageKey(lastUserId);

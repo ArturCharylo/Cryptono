@@ -32,10 +32,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isSessionActive = await SessionService.getInstance().restoreSession();
 
     if (isSessionActive) {
-        // Mamy klucz -> idziemy do haseł
+        // Got key -> navigate to passwords
         router.navigate('/passwords');
     } else {
-        // Brak klucza -> idziemy do logowania
+        // No key -> navigate to login
         router.navigate('/login');
     }
 
