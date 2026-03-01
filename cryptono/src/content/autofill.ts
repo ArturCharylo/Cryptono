@@ -93,6 +93,21 @@ export const fillForms = (initialUsername: string, initialPass: string, initialC
             // Execution
             targetsToFill.forEach((value, targetEl) => {
                 targetEl.value = value;
+
+                // 1. Flag the element as filled by Autofill to prevent Ghost Data in AutoSave
+                targetEl.dataset.cryptonoAutofilled = 'true';
+
+                // 2. Listen for real user input to remove the flag if they change the password manually
+                const removeFlag = (e: Event) => {
+                    // e.isTrusted ensures this is a real user interaction, not our synthetic event below
+                    if (e.isTrusted) {
+                        targetEl.dataset.cryptonoAutofilled = 'false';
+                        targetEl.removeEventListener('input', removeFlag);
+                    }
+                };
+                targetEl.addEventListener('input', removeFlag);
+
+                // 3. Dispatch synthetic events (these will have e.isTrusted === false)
                 targetEl.dispatchEvent(new Event('input', { bubbles: true }));
                 targetEl.dispatchEvent(new Event('change', { bubbles: true }));
                 targetEl.style.backgroundColor = '#e8f0fe';
