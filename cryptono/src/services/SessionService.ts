@@ -39,16 +39,16 @@ export class SessionService {
      * Sets the Last Active User ID so we know which PIN to check on next boot
      */
     async setLastActiveUser(userId: string): Promise<void> {
-        await chrome.storage.session.set({ [this.LAST_USER_KEY]: userId });
+        await chrome.storage.local.set({ [this.LAST_USER_KEY]: userId });
     }
     
     async getLastActiveUser(): Promise<string | null> {
-        const data = await chrome.storage.session.get(this.LAST_USER_KEY);
+        const data = await chrome.storage.local.get(this.LAST_USER_KEY);
         return (data[this.LAST_USER_KEY] as string | undefined) || null;
     }
 
     async clearLastActiveUser(): Promise<void> {
-        await chrome.storage.session.remove(this.LAST_USER_KEY);
+        await chrome.storage.local.remove(this.LAST_USER_KEY);
     }
 
     // Save session: Export CryptoKey -> JWK -> chrome.storage.session
