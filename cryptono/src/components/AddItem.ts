@@ -303,8 +303,13 @@ export class AddItem {
                 this.navigate('/passwords');
 
             } catch (error) {            
-                // We check if the error is about locked vault/missing session
-                if ((error as Error).message.includes("Vault is locked") || (error as Error).message.includes("not logged in")) {
+                // We check if the error is about locked vault, missing session, or no active user
+                const errorMessage = (error as Error).message;
+                
+                if (errorMessage.includes("Vault is locked") || 
+                    errorMessage.includes("not logged in") ||
+                    errorMessage.includes("No active session found")) {
+                    
                     showToastMessage("Session expired. Please login again.", ToastType.ERROR, 2500);
                     this.navigate('/login');
                 }
