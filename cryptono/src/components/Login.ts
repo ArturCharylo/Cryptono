@@ -14,7 +14,7 @@ export class Login {
     async preRenderDataFetch() {
         const sessionService = SessionService.getInstance();
 
-        const candidateId = sessionService.getLastActiveUser();
+        const candidateId = await  sessionService.getLastActiveUser();
         
         if (candidateId) {
             try {
@@ -32,7 +32,7 @@ export class Login {
                 this.lastActiveUserId = null;
             }
         }
-        this.lastActiveUserId = sessionService.getLastActiveUser();
+        this.lastActiveUserId = await sessionService.getLastActiveUser();
     }
 
     render() {

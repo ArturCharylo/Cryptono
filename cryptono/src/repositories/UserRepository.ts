@@ -137,7 +137,7 @@ export class UserRepository {
             await databaseContext.ensureInit();
         
         // Retrieve the ID of the currently logged-in user
-        const activeUserId = SessionService.getInstance().getLastActiveUser();
+        const activeUserId = await SessionService.getInstance().getLastActiveUser();
         
         if (!activeUserId) {
             throw new Error("No active session found");
