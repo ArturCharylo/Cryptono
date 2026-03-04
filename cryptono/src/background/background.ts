@@ -75,7 +75,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   // Auto Save logic
   if (message.type === 'AUTOSAVE_REQUEST') {
-    handleInputSave(message.data).then(sendResponse);
+    // Pass the sender's tab ID explicitly to guarantee response accuracy
+    handleInputSave(message.data, _sender.tab?.id).then(sendResponse);
     return true;
   }
 });

@@ -3,7 +3,8 @@ import { SessionService } from '../services/SessionService';
 import type { ToastData, VaultItem } from '../types';
 
 export async function handleInputSave(
-    data: { url: string; username: string; password: string; fields?: Array<{name: string; value: string; type: string}> }
+    data: { url: string; username: string; password: string; fields?: Array<{name: string; value: string; type: string}> },
+    tabId?: number // Explicitly require the tab ID from the sender
 ): Promise<object> {
      try {
         // Check if user is logged in by attempting to retrieve the key from SessionService
@@ -41,24 +42,27 @@ export async function handleInputSave(
         
         console.log('Cryptono: AutoSaved new credentials!');
         
-        // Get active tab
-        const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
-        if (tab?.id) {
+        // Use provided tabId instead of unreliable active tab queries
+        if (tabId) {
             // Store toast in chrome.storage.local to survive page redirects
             // explicitly type the storage result so TS knows what to expect
             const storageRes = await chrome.storage.local.get('cryptono_toasts') as {
                 cryptono_toasts?: ToastData[];
             };
             const cryptono_toasts: ToastData[] = storageRes.cryptono_toasts ?? [];
+            
+            // Background workers are secure contexts, so crypto is available here
+            const toastId = crypto.randomUUID();
+            
             cryptono_toasts.push({
-                id: crypto.randomUUID(),
+                id: toastId,
                 message: 'Credentials saved!',
                 expiresAt: Date.now() + 4000
             });
             await chrome.storage.local.set({ cryptono_toasts });
             
-            // Still send message in case the page does not redirect
-            chrome.tabs.sendMessage(tab.id, { type: 'SHOW_TOAST', message: 'Credentials saved!', toastId: cryptono_toasts[cryptono_toasts.length - 1].id }).catch(() => {});
+            // Still send message directly to the sender's tab in case the page does not redirect
+            chrome.tabs.sendMessage(tabId, { type: 'SHOW_TOAST', message: 'Credentials saved!', toastId }).catch(() => {});
         }
         
         return { success: true };
