@@ -1,6 +1,5 @@
 import type { CustomField } from './types';
 import { getFieldLabel, scoreUsernameInput } from './heuristics';
-import { showAutoSaveToast } from './ui';
 
 export const initAutoSave = () => {
     document.addEventListener('submit', async (e) => {
@@ -80,11 +79,4 @@ export const initAutoSave = () => {
             }
         }
     }, true);
-
-    // Listen for direct messages from the background script to handle SPA dynamic behavior
-    chrome.runtime.onMessage.addListener((message) => {
-        if (message.type === 'SHOW_TOAST' && message.message) {
-            showAutoSaveToast(message.message, 4000, message.toastId);
-        }
-    });
 };
