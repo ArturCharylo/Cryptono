@@ -67,16 +67,25 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 // --- MESSAGE HANDLING ---
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  // AutoFill logic
-  if (message.type === 'AUTOFILL_REQUEST') {
-    handleAutofill(message.url, sendResponse);
-    return true; // Important: Marks that the autofill response will be async
-  }
+  // A wrapper for handling async tasks safely in chrome background scripts
+  const runAsyncMessage = async () => {
+    try {
+      if (message.type === 'AUTOFILL_REQUEST') {
+        // We await the result instead of passing the direct callback
+        return await new Promise(resolve => handleAutofill(message.url, resolve));
+      }
+      
+      if (message.type === 'AUTOSAVE_REQUEST') {
+        return await handleInputSave(message.data, _sender.tab?.id);
+      }
+    } catch (e) {
+       console.error("Cryptono Background handling error:", e);
+       return { success: false, error: 'BACKGROUND_ERROR' };
+    }
+  };
 
-  // Auto Save logic
-  if (message.type === 'AUTOSAVE_REQUEST') {
-    // Pass the sender's tab ID explicitly to guarantee response accuracy
-    handleInputSave(message.data, _sender.tab?.id).then(sendResponse);
-    return true;
-  }
+  runAsyncMessage().then(sendResponse);
+
+  // Return true signifies that the response will be sent asynchronously.
+  return true; 
 });
