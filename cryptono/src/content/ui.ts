@@ -7,6 +7,46 @@ const generateId = () => {
         : Math.random().toString(36).substring(2) + Date.now().toString(36);
 };
 
+// Inject global styles to avoid inline styling
+const injectGlobalStyles = () => {
+    if (typeof document === 'undefined' || document.getElementById('cryptono-global-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'cryptono-global-styles';
+    style.textContent = `
+        .cryptono-dropdown-host-wrapper {
+            position: absolute;
+            z-index: 2147483647;
+            top: 0;
+            left: 0;
+            width: 100%;
+            pointer-events: none;
+        }
+    `;
+    document.head.appendChild(style);
+};
+
+// Listen to storage changes to catch toasts added by the background script after navigation
+if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'local' && changes.cryptono_toasts) {
+            const newToasts = (changes.cryptono_toasts.newValue || []) as ToastData[];
+            const oldToasts = (changes.cryptono_toasts.oldValue || []) as ToastData[];
+            
+            const now = Date.now();
+            newToasts.forEach((t) => {
+                // Check if the toast is newly added
+                const isNew = !oldToasts.some((ot) => ot.id === t.id);
+                if (isNew) {
+                    const remaining = t.expiresAt - now;
+                    if (remaining > 0) {
+                        renderToastToDOM(t.message, remaining, t.id);
+                    }
+                }
+            });
+        }
+    });
+}
+
 export function showAutoSaveToast(message: string = 'Data saved!', duration: number = 3000, providedId?: string) {
     if (typeof document === 'undefined') return;
 
@@ -164,6 +204,8 @@ export function restorePendingToasts() {
 }
 
 export const createSuggestionDropdown = (input: HTMLInputElement, username: string, onFill: () => void) => {
+    injectGlobalStyles();
+
     // Instead of returning, remove the existing one. 
     // This prevents "zombie" elements from blocking the new one.
     const existing = document.getElementById('cryptono-dropdown-host');
@@ -171,16 +213,7 @@ export const createSuggestionDropdown = (input: HTMLInputElement, username: stri
 
     const host = document.createElement('div');
     host.id = 'cryptono-dropdown-host';
-
-    // Add pointer-events: none to host so the empty overlay doesn't block clicks on the page
-    Object.assign(host.style, {
-        position: 'absolute',
-        zIndex: '2147483647',
-        top: '0px', 
-        left: '0px', 
-        width: '100%',
-        pointerEvents: 'none'
-    });
+    host.className = 'cryptono-dropdown-host-wrapper';
 
     const shadow = host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
@@ -288,21 +321,15 @@ export const createSuggestionDropdown = (input: HTMLInputElement, username: stri
 };
 
 export const createGeneratorDropdown = (input: HTMLInputElement, onGenerate: () => void) => {
-    // remove existing instead of returning
+    injectGlobalStyles();
+
+    // Remove existing instead of returning
     const existing = document.getElementById('cryptono-gen-dropdown-host');
     if (existing) existing.remove();
 
     const host = document.createElement('div');
     host.id = 'cryptono-gen-dropdown-host';
-    
-    Object.assign(host.style, {
-        position: 'absolute',
-        zIndex: '2147483647',
-        top: '0px', 
-        left: '0px', 
-        width: '100%',
-        pointerEvents: 'none' // Ensure clicks pass through
-    });
+    host.className = 'cryptono-dropdown-host-wrapper';
 
     const shadow = host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
