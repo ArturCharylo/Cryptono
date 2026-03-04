@@ -83,9 +83,10 @@ export const initAutoSave = () => {
         }
     }, true);
 
-    chrome.runtime.onMessage.addListener((request) => {
-        if (request.type === 'SHOW_TOAST') {
-            showAutoSaveToast(request.message);
+    // Listen for direct messages from the background script to handle SPA dynamic behavior
+    chrome.runtime.onMessage.addListener((message) => {
+        if (message.type === 'SHOW_TOAST' && message.message) {
+            showAutoSaveToast(message.message, 4000, message.toastId);
         }
     });
 };
