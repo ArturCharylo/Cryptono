@@ -1,58 +1,116 @@
-export function showAutoSaveToast(message: string = 'Data saved!') {
+export function showAutoSaveToast(message: string = 'Data saved!', duration: number = 3000) {
     if (typeof document === 'undefined') return;
 
-    const existing = document.getElementById('cryptono-toast-host');
-    if (existing) existing.remove();
+    // Save state to sessionStorage to survive page reloads
+    if (typeof sessionStorage !== 'undefined') {
+        const expiresAt = Date.now() + duration;
+        sessionStorage.setItem('cryptono_toast', JSON.stringify({ message, expiresAt }));
+    }
 
-    const host = document.createElement('div');
-    host.id = 'cryptono-toast-host';
-    Object.assign(host.style, {
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        zIndex: '2147483647',
-        pointerEvents: 'none'
-    });
+    let host = document.getElementById('cryptono-toast-container');
+    let wrapper: HTMLElement | null = null;
 
-    const shadow = host.attachShadow({ mode: 'open' });
-    const style = document.createElement('style');
-    style.textContent = `
-        .toast {
-            background-color: #10B981;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            font-size: 14px;
-            font-weight: 500;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            opacity: 0;
-            transform: translateY(-20px);
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            pointer-events: auto;
-        }
-        .toast.visible { opacity: 1; transform: translateY(0); }
-        .icon { font-size: 18px; }
-    `;
+    if (!host) {
+        // Create main container if it does not exist
+        host = document.createElement('div');
+        host.id = 'cryptono-toast-container';
+        
+        const shadow = host.attachShadow({ mode: 'open' });
+        const style = document.createElement('style');
+        style.textContent = `
+            .toast-wrapper {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 2147483647;
+                pointer-events: none;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-end;
+            }
+            .toast {
+                background-color: #10B981;
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                font-size: 14px;
+                font-weight: 500;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                opacity: 0;
+                transform: translateY(-20px);
+                transition: opacity 0.3s ease, transform 0.3s ease;
+                pointer-events: auto;
+            }
+            .toast.visible { opacity: 1; transform: translateY(0); }
+            .icon { font-size: 18px; }
+        `;
+        
+        wrapper = document.createElement('div');
+        wrapper.className = 'toast-wrapper';
+        
+        shadow.appendChild(style);
+        shadow.appendChild(wrapper);
+        // Append to documentElement (<html>) to avoid Body margin issues
+        document.documentElement.appendChild(host);
+    } else {
+        wrapper = host.shadowRoot!.querySelector('.toast-wrapper');
+    }
+
+    if (!wrapper) return;
 
     const toastDiv = document.createElement('div');
     toastDiv.className = 'toast';
     toastDiv.innerHTML = `<span class="icon">🔒</span><span>${message}</span>`;
 
-    shadow.appendChild(style);
-    shadow.appendChild(toastDiv);
-    // Append to documentElement (<html>) to avoid Body margin issues
-    document.documentElement.appendChild(host);
+    wrapper.appendChild(toastDiv);
 
+    // Allow DOM to update before adding the visible class for transition to work
     requestAnimationFrame(() => toastDiv.classList.add('visible'));
 
     setTimeout(() => {
         toastDiv.classList.remove('visible');
-        setTimeout(() => host.remove(), 300);
-    }, 3000);
+        setTimeout(() => {
+            toastDiv.remove();
+            // Clean up the host if there are no more toasts left
+            if (wrapper && wrapper.children.length === 0 && host && host.parentNode) {
+                host.parentNode.removeChild(host);
+            }
+        }, 300);
+
+        // Clear storage when toast expires naturally
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.removeItem('cryptono_toast');
+        }
+    }, duration);
+}
+
+// Call this function when the content script initializes
+export function restorePendingToasts() {
+    if (typeof sessionStorage === 'undefined') return;
+
+    const toastData = sessionStorage.getItem('cryptono_toast');
+    if (toastData) {
+        try {
+            const { message, expiresAt } = JSON.parse(toastData);
+            const remainingTime = expiresAt - Date.now();
+            
+            if (remainingTime > 0) {
+                // Show toast for the remaining time
+                showAutoSaveToast(message, remainingTime);
+            } else {
+                // Remove expired toast data
+                sessionStorage.removeItem('cryptono_toast');
+            }
+        } catch (_e) {
+            // Remove invalid data
+            sessionStorage.removeItem('cryptono_toast');
+        }
+    }
 }
 
 export const createSuggestionDropdown = (input: HTMLInputElement, username: string, onFill: () => void) => {
