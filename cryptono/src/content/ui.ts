@@ -1,10 +1,17 @@
 import type { ToastData } from '../types';
 
+// Safe ID generator fallback for non-secure HTTP contexts
+const generateId = () => {
+    return (typeof crypto !== 'undefined' && crypto.randomUUID) 
+        ? crypto.randomUUID() 
+        : Math.random().toString(36).substring(2) + Date.now().toString(36);
+};
+
 export function showAutoSaveToast(message: string = 'Data saved!', duration: number = 3000, providedId?: string) {
     if (typeof document === 'undefined') return;
 
-    // Use robust UUID generation
-    const toastId = providedId || crypto.randomUUID();
+    // Use robust UUID generation with HTTP fallback
+    const toastId = providedId || generateId();
 
     // Save state to chrome.storage.local to survive cross-origin redirects
     if (!providedId && typeof chrome !== 'undefined' && chrome.storage) {

@@ -6,6 +6,13 @@ import { generateStrongPassword } from './utils/passGen';
 //This line is crucial for restoring any pending toasts that were saved before a page reload, ensuring users see important notifications even after navigating away and back to the page.
 restorePendingToasts();
 
+// Listen for direct messages from the background script to handle SPA dynamic behavior
+chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'SHOW_TOAST' && message.message) {
+        showAutoSaveToast(message.message, 4000, message.toastId);
+    }
+});
+
 /**
  * Safely sets the value of an input element and triggers necessary events.
  * This ensures that frameworks like React, Vue, or Angular detect the change
