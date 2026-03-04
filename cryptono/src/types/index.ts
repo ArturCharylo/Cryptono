@@ -78,4 +78,5 @@ export interface ToastData {
     id: string;
     message: string;
     expiresAt: number;
+    domain?: string;
 }

@@ -57,12 +57,10 @@ export async function handleInputSave(
             cryptono_toasts.push({
                 id: toastId,
                 message: 'Credentials saved!',
-                expiresAt: Date.now() + 4000
+                expiresAt: Date.now() + 4000,
+                domain: data.url
             });
             await chrome.storage.local.set({ cryptono_toasts });
-            
-            // Still send message directly to the sender's tab in case the page does not redirect
-            chrome.tabs.sendMessage(tabId, { type: 'SHOW_TOAST', message: 'Credentials saved!', toastId }).catch(() => {});
         }
         
         return { success: true };

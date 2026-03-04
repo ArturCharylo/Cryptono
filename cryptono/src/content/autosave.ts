@@ -20,8 +20,6 @@ export const initAutoSave = () => {
             return;
         }
 
-        if (!passwordInput || !passwordInput.value) return;
-
         let usernameInput: HTMLInputElement | null = null;
         let bestScore = -1;
 

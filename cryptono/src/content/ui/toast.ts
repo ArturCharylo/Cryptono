@@ -10,6 +10,9 @@ if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged)
             
             const now = Date.now();
             newToasts.forEach((t) => {
+                // Skip toasts that belong to a different domain
+                if (t.domain && t.domain !== globalThis.location.hostname) return;
+                
                 // Check if the toast is newly added
                 const isNew = !oldToasts.some((ot) => ot.id === t.id);
                 if (isNew) {
@@ -36,7 +39,7 @@ export function showAutoSaveToast(message: string = 'Data saved!', duration: num
                 if (chrome.runtime.lastError) return;
                 
                 const toasts: ToastData[] = (result.cryptono_toasts || []) as ToastData[];
-                toasts.push({ id: toastId, message, expiresAt: Date.now() + duration });
+                toasts.push({ id: toastId, message, expiresAt: Date.now() + duration, domain: globalThis.location.hostname });
                 chrome.storage.local.set({ cryptono_toasts: toasts });
             });
         } catch (error) {
@@ -159,6 +162,9 @@ export function restorePendingToasts() {
             let hasChanges = false;
 
             toasts = toasts.filter((t) => {
+                // Skip toasts that belong to a different domain
+                if (t.domain && t.domain !== globalThis.location.hostname) return true;
+                
                 const remainingTime = t.expiresAt - now;
                 if (remainingTime > 0) {
                     // Show toast for the remaining time
