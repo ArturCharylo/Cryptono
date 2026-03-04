@@ -1,7 +1,10 @@
 import { fillForms } from './content/autofill';
 import { initAutoSave } from './content/autosave';
-import { createGeneratorDropdown, showAutoSaveToast } from './content/ui';
+import { createGeneratorDropdown, showAutoSaveToast, restorePendingToasts } from './content/ui';
 import { generateStrongPassword } from './utils/passGen';
+
+//This line is crucial for restoring any pending toasts that were saved before a page reload, ensuring users see important notifications even after navigating away and back to the page.
+restorePendingToasts();
 
 /**
  * Safely sets the value of an input element and triggers necessary events.
