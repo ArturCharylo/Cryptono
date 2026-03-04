@@ -1,6 +1,6 @@
 import { vaultRepository } from '../repositories/VaultRepository';
 import { SessionService } from '../services/SessionService';
-import type { VaultItem } from '../types';
+import type { ToastData, VaultItem } from '../types';
 
 export async function handleInputSave(
     data: { url: string; username: string; password: string; fields?: Array<{name: string; value: string; type: string}> }
@@ -44,8 +44,21 @@ export async function handleInputSave(
         // Get active tab
         const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
         if (tab?.id) {
-            // Changed message to English for consistency
-            chrome.tabs.sendMessage(tab.id, { type: 'SHOW_TOAST', message: 'Credentials saved!' });
+            // Store toast in chrome.storage.local to survive page redirects
+            // explicitly type the storage result so TS knows what to expect
+            const storageRes = await chrome.storage.local.get('cryptono_toasts') as {
+                cryptono_toasts?: ToastData[];
+            };
+            const cryptono_toasts: ToastData[] = storageRes.cryptono_toasts ?? [];
+            cryptono_toasts.push({
+                id: crypto.randomUUID(),
+                message: 'Credentials saved!',
+                expiresAt: Date.now() + 4000
+            });
+            await chrome.storage.local.set({ cryptono_toasts });
+            
+            // Still send message in case the page does not redirect
+            chrome.tabs.sendMessage(tab.id, { type: 'SHOW_TOAST', message: 'Credentials saved!', toastId: cryptono_toasts[cryptono_toasts.length - 1].id }).catch(() => {});
         }
         
         return { success: true };

@@ -1,12 +1,30 @@
-export function showAutoSaveToast(message: string = 'Data saved!', duration: number = 3000) {
+import type { ToastData } from '../types';
+
+export function showAutoSaveToast(message: string = 'Data saved!', duration: number = 3000, providedId?: string) {
     if (typeof document === 'undefined') return;
 
-    // Save state to sessionStorage to survive page reloads
-    if (typeof sessionStorage !== 'undefined') {
-        const expiresAt = Date.now() + duration;
-        sessionStorage.setItem('cryptono_toast', JSON.stringify({ message, expiresAt }));
+    // Use robust UUID generation
+    const toastId = providedId || crypto.randomUUID();
+
+    // Save state to chrome.storage.local to survive cross-origin redirects
+    if (!providedId && typeof chrome !== 'undefined' && chrome.storage) {
+        try {
+            chrome.storage.local.get(['cryptono_toasts'], (result) => {
+                if (chrome.runtime.lastError) return;
+                
+                const toasts: ToastData[] = (result.cryptono_toasts || []) as ToastData[];
+                toasts.push({ id: toastId, message, expiresAt: Date.now() + duration });
+                chrome.storage.local.set({ cryptono_toasts: toasts });
+            });
+        } catch (error) {
+            console.debug('Cryptono: Storage context invalid', error);
+        }
     }
 
+    renderToastToDOM(message, duration, toastId);
+}
+
+function renderToastToDOM(message: string, duration: number, toastId: string) {
     let host = document.getElementById('cryptono-toast-container');
     let wrapper: HTMLElement | null = null;
 
@@ -17,8 +35,9 @@ export function showAutoSaveToast(message: string = 'Data saved!', duration: num
         
         const shadow = host.attachShadow({ mode: 'open' });
         const style = document.createElement('style');
+        
         style.textContent = `
-            .toast-wrapper {
+            .host-wrapper {
                 position: fixed;
                 top: 20px;
                 right: 20px;
@@ -51,20 +70,24 @@ export function showAutoSaveToast(message: string = 'Data saved!', duration: num
         `;
         
         wrapper = document.createElement('div');
-        wrapper.className = 'toast-wrapper';
+        wrapper.className = 'host-wrapper';
         
         shadow.appendChild(style);
         shadow.appendChild(wrapper);
         // Append to documentElement (<html>) to avoid Body margin issues
         document.documentElement.appendChild(host);
     } else {
-        wrapper = host.shadowRoot!.querySelector('.toast-wrapper');
+        wrapper = host.shadowRoot!.querySelector('.host-wrapper');
     }
 
     if (!wrapper) return;
 
+    // Prevent duplicate toasts with the same ID in DOM
+    if (wrapper.querySelector(`[data-toast-id="${toastId}"]`)) return;
+
     const toastDiv = document.createElement('div');
     toastDiv.className = 'toast';
+    toastDiv.dataset.toastId = toastId;
     toastDiv.innerHTML = `<span class="icon">🔒</span><span>${message}</span>`;
 
     wrapper.appendChild(toastDiv);
@@ -76,40 +99,60 @@ export function showAutoSaveToast(message: string = 'Data saved!', duration: num
         toastDiv.classList.remove('visible');
         setTimeout(() => {
             toastDiv.remove();
+            
             // Clean up the host if there are no more toasts left
             if (wrapper && wrapper.children.length === 0 && host && host.parentNode) {
                 host.parentNode.removeChild(host);
             }
+            
+            // Clear storage safely when toast expires naturally
+            if (typeof chrome !== 'undefined' && chrome.storage) {
+                try {
+                    // Always get fresh state right before setting to avoid race conditions
+                    chrome.storage.local.get(['cryptono_toasts'], (result) => {
+                        if (chrome.runtime.lastError) return;
+                        
+                        let toasts: ToastData[] = (result.cryptono_toasts || []) as ToastData[];
+                        toasts = toasts.filter((t) => t.id !== toastId);
+                        chrome.storage.local.set({ cryptono_toasts: toasts });
+                    });
+                } catch (error) {
+                    console.debug('Cryptono: Storage context invalid during cleanup', error);
+                }
+            }
         }, 300);
-
-        // Clear storage when toast expires naturally
-        if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.removeItem('cryptono_toast');
-        }
     }, duration);
 }
 
-// Call this function when the content script initializes
 export function restorePendingToasts() {
-    if (typeof sessionStorage === 'undefined') return;
+    if (typeof chrome === 'undefined' || !chrome.storage) return;
+    
+    try {
+        chrome.storage.local.get(['cryptono_toasts'], (result) => {
+            if (chrome.runtime.lastError) return;
 
-    const toastData = sessionStorage.getItem('cryptono_toast');
-    if (toastData) {
-        try {
-            const { message, expiresAt } = JSON.parse(toastData);
-            const remainingTime = expiresAt - Date.now();
-            
-            if (remainingTime > 0) {
-                // Show toast for the remaining time
-                showAutoSaveToast(message, remainingTime);
-            } else {
-                // Remove expired toast data
-                sessionStorage.removeItem('cryptono_toast');
+            let toasts: ToastData[] = (result.cryptono_toasts as ToastData[]) || [];
+            const now = Date.now();
+            let hasChanges = false;
+
+            toasts = toasts.filter((t) => {
+                const remainingTime = t.expiresAt - now;
+                if (remainingTime > 0) {
+                    // Show toast for the remaining time
+                    renderToastToDOM(t.message, remainingTime, t.id);
+                    return true;
+                }
+                hasChanges = true;
+                return false;
+            });
+
+            // Remove expired toast data
+            if (hasChanges) {
+                chrome.storage.local.set({ cryptono_toasts: toasts });
             }
-        } catch (_e) {
-            // Remove invalid data
-            sessionStorage.removeItem('cryptono_toast');
-        }
+        });
+    } catch (error) {
+        console.debug('Cryptono: Failed to restore pending toasts', error);
     }
 }
 
