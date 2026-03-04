@@ -73,3 +73,9 @@ export interface ImportedVaultItem {
     note?: string;
     fields?: Array<{ name: string; value: string; type: string }>;
 }
+
+export interface ToastData {
+    id: string;
+    message: string;
+    expiresAt: number;
+}
