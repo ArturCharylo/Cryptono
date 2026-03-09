@@ -28,6 +28,10 @@ export class Passwords {
                         <button id="add-test-btn" class="login-btn add-item-btn">+ Add Item</button>
                     </div>
 
+                    <div class="search-container">
+                        <input type="text" id="vault-search" class="search-input" placeholder="Search site, email or password...">
+                    </div>
+
                     <div class="table-wrapper">
                         <table class='password-table'>
                             <thead>
@@ -85,6 +89,34 @@ export class Passwords {
         if (addTestBtn){
             addTestBtn.addEventListener('click', () => {
                 this.navigate('/addItem');
+            });
+        }
+
+        // Handle Search filtering
+        const searchInput = document.getElementById('vault-search') as HTMLInputElement;
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = (e.target as HTMLInputElement).value.toLowerCase();
+                const listContainer = document.getElementById('password-list');
+                
+                if (!listContainer) return;
+
+                // Select all rows except the empty/loading state messages
+                const rows = listContainer.querySelectorAll('tr:not(.state-message)');
+                
+                rows.forEach((row) => {
+                    // Extract text content from the relevant cells safely
+                    const url = row.querySelector('.site-url')?.textContent?.toLowerCase() || '';
+                    const username = row.querySelector('.username-cell')?.textContent?.toLowerCase() || '';
+                    const password = row.querySelector('.password-text')?.textContent?.toLowerCase() || '';
+
+                    // Check if search term exists in any of the targeted fields
+                    if (url.includes(searchTerm) || username.includes(searchTerm) || password.includes(searchTerm)) {
+                        row.classList.remove('hidden'); // Show matching row
+                    } else {
+                        row.classList.add('hidden'); // Hide non-matching row
+                    }
+                });
             });
         }
     }
