@@ -1,6 +1,7 @@
 import { vaultRepository } from '../repositories/VaultRepository';
 import { SessionService } from '../services/SessionService';
 import { showToastMessage, ToastType } from '../utils/messages';
+import { AuditService } from '../services/AuditService';
 
 export class Passwords {
     navigate: (path: string) => void;
@@ -113,11 +114,22 @@ export class Passwords {
             for (const item of items) {
                 const tr = document.createElement('tr');
 
-                // Column 'Site'
+                // Column 'Site' - Added Status Icon
                 const tdSite = document.createElement('td');
+                tdSite.className = 'site-cell';
+                
+                // Status icon placeholder
+                const statusIcon = document.createElement('span');
+                statusIcon.className = 'audit-status-icon status-loading';
+                statusIcon.id = `audit-status-${item.id}`;
+                statusIcon.title = 'Analyzing password security...';
+                statusIcon.textContent = '⏳';
+
                 const spanSite = document.createElement('span');
                 spanSite.className = 'site-url';
                 spanSite.textContent = item.url;
+                
+                tdSite.appendChild(statusIcon);
                 tdSite.appendChild(spanSite);
                 tr.appendChild(tdSite);
 
@@ -260,6 +272,9 @@ export class Passwords {
 
             listContainer.appendChild(fragment);
 
+            // Execute audit in the background so UI rendering is not blocked
+            this.runBackgroundAudit();
+
         } catch (error) {
             console.error(error);
             // Handle session expired error
@@ -268,6 +283,47 @@ export class Passwords {
                  return;
             }
             listContainer.innerHTML = '<tr><td colspan="4" class="error-message">Error loading vault.</td></tr>';
+        }
+    }
+
+    // New method to handle the background audit update
+    private async runBackgroundAudit() {
+        try {
+            const auditService = new AuditService(vaultRepository);
+            const auditResults = await auditService.runFullAudit();
+
+            // Update DOM elements with actual results
+            for (const result of auditResults) {
+                const iconEl = document.getElementById(`audit-status-${result.id}`);
+                if (!iconEl) continue;
+
+                // Remove loading class
+                iconEl.classList.remove('status-loading');
+
+                if (result.is_leaked) {
+                    iconEl.textContent = '💀';
+                    iconEl.title = 'Critical: Password leaked in data breach!';
+                    iconEl.classList.add('status-leaked');
+                } else if (result.is_reused) {
+                    iconEl.textContent = '⚠️';
+                    iconEl.title = 'Warning: Password is reused across multiple sites.';
+                    iconEl.classList.add('status-reused');
+                } else if (result.score >= 3) {
+                    iconEl.textContent = '🟢';
+                    iconEl.title = 'Strong password.';
+                    iconEl.classList.add('status-strong');
+                } else if (result.score === 2) {
+                    iconEl.textContent = '🟡';
+                    iconEl.title = 'Moderate password.';
+                    iconEl.classList.add('status-moderate');
+                } else {
+                    iconEl.textContent = '🔴';
+                    iconEl.title = 'Weak password. Change is highly recommended.';
+                    iconEl.classList.add('status-weak');
+                }
+            }
+        } catch (error) {
+            console.error('Failed to run background audit:', error);
         }
     }
 }
