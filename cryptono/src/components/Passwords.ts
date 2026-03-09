@@ -195,7 +195,7 @@ export class Passwords {
 
                 // Table column 'Action'
                 const tdAction = document.createElement('td');
-                tdAction.className = 'text-right';
+                tdAction.className = 'text-right action-cell';
 
                 // Edit button
                 const btnEdit = document.createElement('button');
@@ -213,18 +213,17 @@ export class Passwords {
                 btnDelete.className = 'action-btn delete-btn';
                 btnDelete.textContent = 'Delete';
                 btnDelete.onclick = () => {
-                    // Hide Edit/Delete, show Confirm/Cancel
-                    btnEdit.style.display = 'none';
-                    btnDelete.style.display = 'none';
-                    btnConfirm.style.display = 'inline-block';
-                    btnCancel.style.display = 'inline-block';
+                    // Hide Edit/Delete, show Confirm/Cancel using utility class
+                    btnEdit.classList.add('hidden');
+                    btnDelete.classList.add('hidden');
+                    btnConfirm.classList.remove('hidden');
+                    btnCancel.classList.remove('hidden');
                 };
 
                 // Confirm button (hidden by default)
                 const btnConfirm = document.createElement('button');
-                btnConfirm.className = 'action-btn edit-btn';
+                btnConfirm.className = 'action-btn edit-btn hidden';
                 btnConfirm.textContent = 'Confirm';
-                btnConfirm.style.display = 'none';
 
                 btnConfirm.onclick = async () => {
                     try {
@@ -249,16 +248,15 @@ export class Passwords {
 
                 // Cancel button (hidden by default)
                 const btnCancel = document.createElement('button');
-                btnCancel.className = 'action-btn delete-btn';
+                btnCancel.className = 'action-btn delete-btn hidden';
                 btnCancel.textContent = 'Cancel';
-                btnCancel.style.display = 'none';
 
                 btnCancel.onclick = () => {
-                    // Show Edit/Delete, hide Confirm/Cancel
-                    btnEdit.style.display = 'inline-block';
-                    btnDelete.style.display = 'inline-block';
-                    btnConfirm.style.display = 'none';
-                    btnCancel.style.display = 'none';
+                    // Show Edit/Delete, hide Confirm/Cancel using utility class
+                    btnEdit.classList.remove('hidden');
+                    btnDelete.classList.remove('hidden');
+                    btnConfirm.classList.add('hidden');
+                    btnCancel.classList.add('hidden');
                 }
 
                 tdAction.appendChild(btnEdit);
@@ -297,29 +295,31 @@ export class Passwords {
                 const iconEl = document.getElementById(`audit-status-${result.id}`);
                 if (!iconEl) continue;
 
+                const trEl = iconEl.closest('tr');
+
                 // Remove loading class
                 iconEl.classList.remove('status-loading');
 
                 if (result.is_leaked) {
                     iconEl.textContent = '💀';
                     iconEl.title = 'Critical: Password leaked in data breach!';
-                    iconEl.classList.add('status-leaked');
+                    if (trEl) trEl.classList.add('row-status-leaked');
                 } else if (result.is_reused) {
                     iconEl.textContent = '⚠️';
                     iconEl.title = 'Warning: Password is reused across multiple sites.';
-                    iconEl.classList.add('status-reused');
+                    if (trEl) trEl.classList.add('row-status-reused');
                 } else if (result.score >= 3) {
                     iconEl.textContent = '🟢';
                     iconEl.title = 'Strong password.';
-                    iconEl.classList.add('status-strong');
+                    if (trEl) trEl.classList.add('row-status-strong');
                 } else if (result.score === 2) {
                     iconEl.textContent = '🟡';
                     iconEl.title = 'Moderate password.';
-                    iconEl.classList.add('status-moderate');
+                    if (trEl) trEl.classList.add('row-status-moderate');
                 } else {
                     iconEl.textContent = '🔴';
                     iconEl.title = 'Weak password. Change is highly recommended.';
-                    iconEl.classList.add('status-weak');
+                    if (trEl) trEl.classList.add('row-status-weak');
                 }
             }
         } catch (error) {
