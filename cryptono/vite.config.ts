@@ -23,15 +23,19 @@ export default defineConfig({
   plugins: [
     viteStaticCopy({
       targets: [
-        {
+        { // Argon2 WASM file from the npm package
           src: 'node_modules/argon2-extension-mv3/dist/argon2_wasm.wasm',
           dest: '.' 
         },
         {
-          // Copy the compressor WASM file to the dist folder
+          // Compressor WASM file
           src: 'src/wasm/cryptono_zip_bg.wasm', 
           dest: '.' 
         },
+        { // Auditor WASM file
+          src: 'src/wasm/cryptono_audit_bg.wasm',
+          dest: '.'
+        }
       ]
     }),
     {
