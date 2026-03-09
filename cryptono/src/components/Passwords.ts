@@ -118,6 +118,10 @@ export class Passwords {
                 const tdSite = document.createElement('td');
                 tdSite.className = 'site-cell';
                 
+                // Create a flex wrapper to prevent breaking the table cell height
+                const divSiteWrapper = document.createElement('div');
+                divSiteWrapper.className = 'site-info-wrapper';
+                
                 // Status icon placeholder
                 const statusIcon = document.createElement('span');
                 statusIcon.className = 'audit-status-icon status-loading';
@@ -129,8 +133,10 @@ export class Passwords {
                 spanSite.className = 'site-url';
                 spanSite.textContent = item.url;
                 
-                tdSite.appendChild(statusIcon);
-                tdSite.appendChild(spanSite);
+                // Append icon and url to the wrapper, then wrapper to the cell
+                divSiteWrapper.appendChild(statusIcon);
+                divSiteWrapper.appendChild(spanSite);
+                tdSite.appendChild(divSiteWrapper);
                 tr.appendChild(tdSite);
 
                 // Column 'Username'
