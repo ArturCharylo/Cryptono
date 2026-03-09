@@ -80,3 +80,14 @@ export interface ToastData {
     expiresAt: number;
     domain?: string;
 }
+
+// This interface is used for the audit report items returned by the WASM module and processed in AuditService
+export interface AuditReportItem {
+    id: string;
+    score: number;
+    warning: string | null;
+    is_reused: boolean;
+    sha1_prefix: string;
+    sha1_suffix: string;
+    is_leaked?: boolean;
+}
