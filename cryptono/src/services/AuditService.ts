@@ -36,12 +36,13 @@ export class AuditService {
         );
 
         // Check each password against the HIBP database using k-Anonymity
-        for (const result of localAuditResults) {
+        // Concurrent Promise.all for faster execution
+        await Promise.all(localAuditResults.map(async (result) => {
             result.is_leaked = await this.checkPwnedPasswords(
                 result.sha1_prefix, 
                 result.sha1_suffix
             );
-        }
+        }));
 
         return localAuditResults;
     }
