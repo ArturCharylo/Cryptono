@@ -98,8 +98,22 @@ export class Passwords {
                 
                 if (!listContainer) return;
 
+                // Prevent search logic if the vault is completely empty
+                const emptyMessage = listContainer.querySelector('.state-message.empty');
+                if (emptyMessage && !emptyMessage.classList.contains('no-results-message')) {
+                    return; 
+                }
+
+                // Remove previously added "No results" message if it exists
+                const existingNoResults = listContainer.querySelector('.no-results-message');
+                if (existingNoResults) {
+                    existingNoResults.remove();
+                }
+
                 // Select all rows except the empty/loading state messages
                 const rows = listContainer.querySelectorAll('tr:not(.state-message)');
+
+                let hasVisibleRows = false;
                 
                 rows.forEach((row) => {
                     // Extract text content from the relevant cells safely
@@ -110,10 +124,19 @@ export class Passwords {
                     // Check if search term exists in any of the targeted fields
                     if (url.includes(searchTerm) || username.includes(searchTerm) || password.includes(searchTerm)) {
                         row.classList.remove('hidden'); // Show matching row
+                        hasVisibleRows = true;
                     } else {
                         row.classList.add('hidden'); // Hide non-matching row
                     }
                 });
+
+                // If no rows are visible, show a "No results" message similar to the empty vault state
+                if (!hasVisibleRows && rows.length > 0) {
+                    const noResultsTr = document.createElement('tr');
+                    noResultsTr.className = 'state-message empty no-results-message';
+                    noResultsTr.innerHTML = '<td colspan="4" class="state-message empty">No results found.</td>';
+                    listContainer.appendChild(noResultsTr);
+                }
             });
         }
     }
