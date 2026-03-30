@@ -3,6 +3,13 @@
 // Utility functions for converting between ArrayBuffer, Base64, and string formats.
 // Web crypto API uses ArrayBuffer for binary data.
 
+
+//Helper method to convert Uint8Array to Base64 string.
+export const uint8ToBase64 = (arr: Uint8Array): string => {
+    // Using a standard browser API for conversion
+    return btoa(String.fromCharCode.apply(null, arr as unknown as number[]));
+};
+
 // Helper function to safely convert any BufferSource to Uint8Array backed by a standard ArrayBuffer.
 const toUint8Array = (buffer: BufferSource): Uint8Array<ArrayBuffer> => {
     if (buffer instanceof ArrayBuffer) {
