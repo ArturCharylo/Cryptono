@@ -38,7 +38,7 @@ export default defineConfig({
         },
         {
           // Secret Sharing Scheme WASM file
-          src: 'src/wasm/cryptono_sss.wasm.d.ts',
+          src: 'src/wasm/cryptono_sss_bg.wasm.d.ts',
           dest: '.'
         }
       ]
