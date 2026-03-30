@@ -35,6 +35,11 @@ export default defineConfig({
         { // Auditor WASM file
           src: 'src/wasm/cryptono_audit_bg.wasm',
           dest: '.'
+        },
+        {
+          // Secret Sharing Scheme WASM file
+          src: 'src/wasm/cryptono_sss.wasm.d.ts',
+          dest: '.'
         }
       ]
     }),
