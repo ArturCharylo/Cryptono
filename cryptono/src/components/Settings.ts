@@ -1,6 +1,7 @@
 import { PinSetup } from './settings/PinSetup';
 import { PasswordChange } from './settings/PasswordChange';
 import { DataManagement } from './settings/DataManagement';
+import { BackupCodesSetup } from './settings/BackupCodesSetup';
 
 export class Settings {
     navigate: (path: string) => void;
@@ -9,6 +10,7 @@ export class Settings {
     private pinSetup: PinSetup;
     private passwordChange: PasswordChange;
     private dataManagement: DataManagement;
+    private backupCodesSetup: BackupCodesSetup;
 
     constructor(navigate: (path: string) => void) {
         this.navigate = navigate;
@@ -17,6 +19,7 @@ export class Settings {
         this.pinSetup = new PinSetup('pin-unlock-toggle');
         this.passwordChange = new PasswordChange('change-master-password');
         this.dataManagement = new DataManagement('import-btn', 'export-btn');
+        this.backupCodesSetup = new BackupCodesSetup('generate-backup-codes');
     }
 
     render() {
@@ -89,6 +92,14 @@ export class Settings {
                             </div>
                             <span class="chevron">›</span>
                         </div>
+
+                        <div class="settings-item action-item" id="generate-backup-codes">
+                            <div class="item-info">
+                                <span class="item-label">Backup Codes</span>
+                                <span class="item-description">Generate recovery codes for your vault.</span>
+                            </div>
+                            <span class="chevron">›</span>
+                        </div>
                     </div>
 
                     <div class="settings-group">
@@ -106,7 +117,7 @@ export class Settings {
 
                 ${this.passwordChange.getModalTemplate()}
                 ${this.pinSetup.getModalTemplate()}
-            </div>
+                ${this.backupCodesSetup.getModalTemplate()} </div>
         `;
     }
 
@@ -120,6 +131,7 @@ export class Settings {
         this.pinSetup.bindEvents();
         this.passwordChange.bindEvents();
         this.dataManagement.bindEvents();
+        this.backupCodesSetup.bindEvents();
 
         // Simple Logic (Theme & Auto-lock) handled locally
         await this.handleGlobalSettings();

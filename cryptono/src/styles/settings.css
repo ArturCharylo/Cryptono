@@ -509,3 +509,69 @@ input:checked + .slider:before {
     from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
 }
+/* --- Backup Codes Modal Specific Styles --- */
+
+.warning-text {
+    color: var(--text-error, #ff8a80);
+    padding: 10px;
+    background: rgba(255, 82, 82, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 82, 82, 0.2);
+}
+
+.success-text {
+    color: var(--text-primary);
+    padding: 10px;
+    background: rgba(74, 144, 226, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(74, 144, 226, 0.2);
+    margin-bottom: 16px;
+}
+
+.codes-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 4px;
+    margin: 12px 0;
+}
+
+.backup-code-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--input-bg-shade);
+    border: 1px solid var(--glass-border-light);
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 0.95rem;
+}
+
+.code-index {
+    color: var(--text-muted);
+    font-weight: 600;
+    min-width: 20px;
+}
+
+.code-value {
+    color: var(--text-primary);
+    letter-spacing: 1px;
+    word-break: break-all;
+}
+
+/* Custom scrollbar for codes grid */
+.codes-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.codes-grid::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.codes-grid::-webkit-scrollbar-thumb {
+    background: var(--glass-border-highlight);
+    border-radius: 4px;
+}
