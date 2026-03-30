@@ -1,14 +1,19 @@
+// src/components/Login.ts
 import { loginValidation } from '../validation/validate';
 import { userRepository } from '../repositories/UserRepository';
 import { clearField, setErrorMessage, setInputClassError, showToastMessage, ToastType } from '../utils/messages';
 import { SessionService } from '../services/SessionService';
+import { BackupCodeLogin } from './BackupCodeLogin'; // Added import
 
 export class Login {
     navigate: (path: string) => void;
     private lastActiveUserId: string | null = null; 
+    private backupCodeLogin: BackupCodeLogin; // Added property
 
     constructor(navigate: (path: string) => void) {
         this.navigate = navigate;
+        // Initialize the BackupCodeLogin module
+        this.backupCodeLogin = new BackupCodeLogin('open-backup-login', navigate);
     }
 
     async preRenderDataFetch() {
@@ -36,7 +41,6 @@ export class Login {
     }
 
     render() {
-
         return `
             <div class="container">
                 <div class="header">
@@ -98,6 +102,10 @@ export class Login {
                     <div id="pin-switch-container" class="auth-switch-wrapper hidden">
                         <a href="#" id="switch-to-pin" class="security-note-link small-text">Log in with PIN</a>
                     </div>
+                    
+                    <div class="auth-switch-wrapper" style="margin-top: 10px;">
+                        <a href="#" id="open-backup-login" class="security-note-link small-text">Lost password? Use backup codes</a>
+                    </div>
                 </div>
 
                 <div class="footer">
@@ -106,6 +114,8 @@ export class Login {
                         Don't have an account? <a href="#" id="go-to-register" class="security-note-link">Register</a>
                     </p>
                 </div>
+                
+                ${this.backupCodeLogin.getModalTemplate()}
             </div>
         `;
     }
@@ -117,6 +127,9 @@ export class Login {
 
         const sessionService = SessionService.getInstance();
         
+        // Initialize the sub-component events
+        this.backupCodeLogin.bindEvents(); // Added initialization
+
         // Sections
         const pinSection = document.getElementById('pin-section');
         const passwordSection = document.getElementById('password-section');

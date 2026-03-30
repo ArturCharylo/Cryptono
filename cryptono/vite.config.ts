@@ -62,7 +62,7 @@ export default defineConfig({
             content = content.replace('src="popup.ts"', 'src="popup.js"');
             
             // Adjust CSS paths for the dist structure
-            const styles = ['popup', 'App', 'passwords', 'addItem', 'settings'];
+            const styles = ['popup', 'App', 'passwords', 'addItem', 'settings', 'backupLogin'];
             styles.forEach(style => {
                 content = content.replace(`href="../styles/${style}.css"`, `href="styles/${style}.css"`);
             });
