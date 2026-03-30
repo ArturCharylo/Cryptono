@@ -1,18 +1,16 @@
-// src/components/Login.ts
 import { loginValidation } from '../validation/validate';
 import { userRepository } from '../repositories/UserRepository';
 import { clearField, setErrorMessage, setInputClassError, showToastMessage, ToastType } from '../utils/messages';
 import { SessionService } from '../services/SessionService';
-import { BackupCodeLogin } from './BackupCodeLogin'; // Added import
+import { BackupCodeLogin } from './BackupCodeLogin';
 
 export class Login {
     navigate: (path: string) => void;
     private lastActiveUserId: string | null = null; 
-    private backupCodeLogin: BackupCodeLogin; // Added property
+    private backupCodeLogin: BackupCodeLogin;
 
     constructor(navigate: (path: string) => void) {
         this.navigate = navigate;
-        // Initialize the BackupCodeLogin module
         this.backupCodeLogin = new BackupCodeLogin('open-backup-login', navigate);
     }
 
@@ -128,7 +126,7 @@ export class Login {
         const sessionService = SessionService.getInstance();
         
         // Initialize the sub-component events
-        this.backupCodeLogin.bindEvents(); // Added initialization
+        this.backupCodeLogin.bindEvents();
 
         // Sections
         const pinSection = document.getElementById('pin-section');

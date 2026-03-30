@@ -3,12 +3,18 @@ import { cryptoService } from '../../services/CryptoService';
 import { base64ToBuff, buffToBase64 } from '../../utils/buffer';
 import { showToastMessage, ToastType } from '../../utils/messages';
 import { passwordRegex } from '../../validation/validate';
+import { BackupCodeLogin } from '../BackupCodeLogin';
 
 export class PasswordChange {
+    navigate: (path: string) => void;
     private modal: HTMLElement | null = null;
     private errorMsg: HTMLElement | null = null;
-
-    constructor(private triggerBtnId: string) {}
+    private backupCodeLogin: BackupCodeLogin;
+    
+    constructor(private triggerBtnId: string, navigate: (path: string) => void) {
+        this.navigate = navigate;
+        this.backupCodeLogin = new BackupCodeLogin('open-backup-login', this.navigate);
+    }
 
     getModalTemplate(): string {
         return `
@@ -28,25 +34,39 @@ export class PasswordChange {
                     <input type="password" id="confirm-pass" class="modal-input" placeholder="Confirm New Password">
                 </div>
                 <p id="modal-error-msg" class="modal-error-text hidden"></p>
+                
+                <div class="auth-switch-wrapper" style="margin-top: 10px;">
+                    <a href="#" id="open-backup-login" class="security-note-link small-text">Lost password? Use backup codes</a>
+                </div>
+                
                 <div class="modal-actions">
                     <button id="cancel-pass" class="btn-secondary">Cancel</button>
                     <button id="save-pass" class="btn-primary">Update</button>
                 </div>
             </div>
-        </div>`;
+        </div>
+
+        ${this.backupCodeLogin.getModalTemplate()}
+        `;
     }
 
     bindEvents() {
         const triggerBtn = document.getElementById(this.triggerBtnId);
         this.modal = document.getElementById('password-modal');
         this.errorMsg = document.getElementById('modal-error-msg');
+        this.backupCodeLogin.bindEvents();
 
         const saveBtn = document.getElementById('save-pass') as HTMLButtonElement;
         const cancelBtn = document.getElementById('cancel-pass');
+        const openBackupBtn = document.getElementById('open-backup-login');
 
         triggerBtn?.addEventListener('click', () => {
             if (this.modal) this.modal.classList.add('active');
             (document.getElementById('old-pass') as HTMLInputElement)?.focus();
+        });
+
+        openBackupBtn?.addEventListener('click', () => {
+             this.closeModal();
         });
 
         cancelBtn?.addEventListener('click', () => this.closeModal());
