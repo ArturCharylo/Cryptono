@@ -10,6 +10,16 @@ export const uint8ToBase64 = (arr: Uint8Array): string => {
     return btoa(String.fromCharCode.apply(null, arr as unknown as number[]));
 };
 
+// Helper method to convert Uint8Array to Base64 string.
+export const base64ToUint8 = (base64: string): Uint8Array => {
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+}
+
 // Helper function to safely convert any BufferSource to Uint8Array backed by a standard ArrayBuffer.
 const toUint8Array = (buffer: BufferSource): Uint8Array<ArrayBuffer> => {
     if (buffer instanceof ArrayBuffer) {
@@ -83,4 +93,14 @@ export const hexToBuff = (hex: string): Uint8Array<ArrayBuffer> => {
     }
     
     return array as Uint8Array<ArrayBuffer>;
+};
+
+export const toStrictBufferView = <T extends ArrayBufferLike>(
+    arr: Uint8Array<T>
+): Uint8Array<ArrayBuffer> => {
+    return new Uint8Array(
+        arr.buffer as unknown as ArrayBuffer,
+        arr.byteOffset,
+        arr.byteLength
+    );
 };

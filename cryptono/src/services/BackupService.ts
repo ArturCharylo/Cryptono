@@ -1,7 +1,7 @@
-// src/services/BackupService.ts
-import init, { generate_backup_codes, BackupShares } from '../wasm/cryptono_sss';
+import init, { generate_backup_codes, BackupShares, recover_from_shares } from '../wasm/cryptono_sss';
 import { SessionService } from './SessionService';
-import { uint8ToBase64 } from '../utils/buffer';
+import { uint8ToBase64, base64ToUint8, toStrictBufferView } from '../utils/buffer';
+import { CRYPTO_KEYS } from '../constants/constants';
 
 export class BackupService {
     /**
@@ -47,5 +47,39 @@ export class BackupService {
         }
 
         return backupCodes;
+    }
+
+    // Recovers the Vault Key from the provided backup codes and saves it to the session
+    static async recoverVault(base64Codes: string[]): Promise<boolean> {
+        await init();
+
+        try {
+            // 1. Convert Base64 strings back to Uint8Array shares
+            const sharesArray = base64Codes.map(code => base64ToUint8(code));
+
+            // 2. Call the WASM function to combine shares and recover the raw key bytes
+            const rawKeyBytes = recover_from_shares(sharesArray);
+            const strictKeyView = toStrictBufferView(rawKeyBytes);
+
+            // 3. Import the raw bytes back into a CryptoKey object
+            const vaultKey = await globalThis.crypto.subtle.importKey(
+                "raw",
+                strictKeyView,
+                { name: CRYPTO_KEYS.ALGO_AES },
+                true, // MUST be extractable so it can be exported to JWK in SessionService
+                ["encrypt", "decrypt"]
+            );
+
+            // Clear the raw bytes from JS memory after import
+            strictKeyView.fill(0);
+
+            // 4. Save the recovered key directly into the user's session
+            await SessionService.getInstance().saveSession(vaultKey);
+
+            return true;
+        } catch (error) {
+            console.error("Vault recovery failed:", error);
+            throw new Error("Invalid or insufficient backup codes.");
+        }
     }
 }
