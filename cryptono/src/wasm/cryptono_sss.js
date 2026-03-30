@@ -52,6 +52,18 @@ export function generate_backup_codes(secret, threshold, total_shares) {
     return BackupShares.__wrap(ret[0]);
 }
 
+/**
+ * @param {Array<any>} shares_array
+ * @returns {Uint8Array}
+ */
+export function recover_from_shares(shares_array) {
+    const ret = wasm.recover_from_shares(shares_array);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
@@ -89,12 +101,24 @@ function __wbg_get_imports() {
         __wbg_getRandomValues_c44a50d8cfdaebeb: function() { return handleError(function (arg0, arg1) {
             arg0.getRandomValues(arg1);
         }, arguments); },
+        __wbg_get_a8ee5c45dabc1b3b: function(arg0, arg1) {
+            const ret = arg0[arg1 >>> 0];
+            return ret;
+        },
+        __wbg_length_b3416cf66a5452c8: function(arg0) {
+            const ret = arg0.length;
+            return ret;
+        },
         __wbg_length_ea16607d7b61445b: function(arg0) {
             const ret = arg0.length;
             return ret;
         },
         __wbg_msCrypto_bd5a034af96bcba6: function(arg0) {
             const ret = arg0.msCrypto;
+            return ret;
+        },
+        __wbg_new_5f486cdf45a04d78: function(arg0) {
+            const ret = new Uint8Array(arg0);
             return ret;
         },
         __wbg_new_from_slice_22da9388ac046e50: function(arg0, arg1) {

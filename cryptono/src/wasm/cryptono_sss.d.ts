@@ -11,6 +11,8 @@ export class BackupShares {
 
 export function generate_backup_codes(secret: Uint8Array, threshold: number, total_shares: number): BackupShares;
 
+export function recover_from_shares(shares_array: Array<any>): Uint8Array;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
@@ -19,6 +21,7 @@ export interface InitOutput {
     readonly backupshares_get_share: (a: number, b: number) => any;
     readonly backupshares_len: (a: number) => number;
     readonly generate_backup_codes: (a: number, b: number, c: any, d: number, e: number) => [number, number, number];
+    readonly recover_from_shares: (a: any) => [number, number, number];
     readonly __wbindgen_exn_store: (a: number) => void;
     readonly __externref_table_alloc: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;

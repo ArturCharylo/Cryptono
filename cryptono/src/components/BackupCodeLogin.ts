@@ -98,14 +98,13 @@ export class BackupCodeLogin {
             this.setLoadingState(true);
 
             try {
-                // TODO: Implement BackupService.recoverVault([code1, code2, code3])
-                // await BackupService.recoverVault([code1, code2, code3]);
+                // Call the BackupService to process the shares and restore the session
+                await BackupService.recoverVault([code1, code2, code3]);
                 
-                // For now, simulate a network/crypto delay
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                
-                showToastMessage('Vault recovered successfully!', ToastType.SUCCESS, 2000);
+                showToastMessage('Vault recovered successfully! Please change your master password.', ToastType.SUCCESS, 4000);
                 modal?.classList.remove('active');
+                
+                // Navigate to the dashboard after successful recovery
                 this.navigate('/passwords');
 
             } catch (error) {
@@ -126,12 +125,12 @@ export class BackupCodeLogin {
 
         if (isLoading) {
             submitBtn?.classList.add('loading');
-            submitBtn.disabled = true;
+            if (submitBtn) submitBtn.disabled = true;
             loader?.classList.remove('hidden');
             inputs.forEach(input => input.disabled = true);
         } else {
             submitBtn?.classList.remove('loading');
-            submitBtn.disabled = false;
+            if (submitBtn) submitBtn.disabled = false;
             loader?.classList.add('hidden');
             inputs.forEach(input => input.disabled = false);
         }
