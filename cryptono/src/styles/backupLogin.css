@@ -55,3 +55,8 @@
     width: 100%;
     margin-top: 5px;
 }
+
+.btn-text {
+    margin: auto;
+    gap: 8px;
+}
