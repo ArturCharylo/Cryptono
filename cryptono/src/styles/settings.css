@@ -471,6 +471,7 @@ input:checked + .slider:before {
 .btn-secondary {
     background: transparent;
     border: 1px solid var(--glass-border-light) !important;
+    border-radius: 1rem;
     color: var(--text-muted);
 }
 
