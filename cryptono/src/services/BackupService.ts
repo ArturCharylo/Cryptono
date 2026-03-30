@@ -1,18 +1,27 @@
+// src/services/BackupService.ts
 import init, { generate_backup_codes, BackupShares } from '../wasm/cryptono_sss';
+import { SessionService } from './SessionService';
 import { uint8ToBase64 } from '../utils/buffer';
 
 export class BackupService {
     /**
-     * Generates backup codes from the provided master secret.
-     * @param masterKey The master secret key to be split.
+     * Generates backup codes from the currently active vault key.
      * @param threshold Minimum number of shares required to reconstruct the key.
      * @param totalShares Total number of backup codes to generate.
      * @returns Array of backup codes encoded as Base64 strings.
      */
-    static async generateCodes(masterKey: Uint8Array, threshold: number, totalShares: number): Promise<string[]> {
+    static async generateCodes(threshold: number, totalShares: number): Promise<string[]> {
         await init(); 
 
-        const secretCopy = new Uint8Array(masterKey);
+        // Retrieve the active vault key from the session
+        const vaultKey = SessionService.getInstance().getKey();
+
+        // Export the vault key to raw bytes so it can be split
+        const rawKeyBuffer = await globalThis.crypto.subtle.exportKey("raw", vaultKey);
+        
+        // We need to create a copy of the key because the Rust code uses `secret.zeroize()` 
+        // which will mutate and wipe the array passed to it.
+        const secretCopy = new Uint8Array(rawKeyBuffer);
 
         let sharesObj: BackupShares | null = null;
         const backupCodes: string[] = [];
