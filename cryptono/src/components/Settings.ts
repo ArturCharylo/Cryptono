@@ -17,7 +17,7 @@ export class Settings {
 
         // Initialize modules with IDs of elements they control
         this.pinSetup = new PinSetup('pin-unlock-toggle');
-        this.passwordChange = new PasswordChange('change-master-password');
+        this.passwordChange = new PasswordChange('change-master-password', this.navigate);
         this.dataManagement = new DataManagement('import-btn', 'export-btn');
         this.backupCodesSetup = new BackupCodesSetup('generate-backup-codes');
     }
