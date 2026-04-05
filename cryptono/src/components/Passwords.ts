@@ -26,8 +26,10 @@ export class Passwords {
                 <div>
                     <div class="vault-header-group">
                         <h2 class="vault-title">Your Vault</h2>
-                        <input type="text" id="vault-search" class="search-input" placeholder="Search site, email or password...">
-                        <button id="add-test-btn" class="login-btn add-item-btn">+ Add Item</button>
+                        <div class="vault-header-actions">
+                            <input type="text" id="vault-search" class="search-input" placeholder="Search site, email or password...">
+                            <button id="add-test-btn" class="login-btn add-item-btn">+ Add Item</button>
+                        </div>
                     </div>
 
                     <div class="table-wrapper">
