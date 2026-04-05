@@ -2,6 +2,7 @@ import { vaultRepository } from '../repositories/VaultRepository';
 import { SessionService } from '../services/SessionService';
 import { showToastMessage, ToastType } from '../utils/messages';
 import { AuditService } from '../services/AuditService';
+import type { VaultItem } from '../types/index';
 
 export class Passwords {
     navigate: (path: string) => void;
@@ -34,13 +35,10 @@ export class Passwords {
                             <thead>
                                 <tr>
                                     <th>Site</th>
-                                    <th>Username</th>
-                                    <th>Password</th>
-                                    <th id="action-header">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="password-list">
-                                <tr><td colspan="4" class="state-message">Loading vault...</td></tr>
+                                <tr><td class="state-message">Loading vault...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -53,12 +51,42 @@ export class Passwords {
                 <div class="footer">
                     <p class="security-note">🔐 Encrypted & Secure</p>
                 </div>
+
+                <div id="item-modal" class="modal">
+                    <div class="modal-content">
+                        <span id="close-modal" class="close-btn">&times;</span>
+                        <h3 id="modal-site-title" class="modal-title"></h3>
+                        
+                        <div class="modal-field">
+                            <label class="modal-label">Username</label>
+                            <div id="modal-username-val" class="modal-value"></div>
+                        </div>
+                        
+                        <div class="modal-field">
+                            <label class="modal-label">Password</label>
+                            <div class="password-wrapper modal-password" id="modal-pass-wrapper">
+                                <span id="modal-password-val" class="password-text"></span>
+                                <span class="password-mask">••••••••</span>
+                                <button class="copy-icon-btn" id="modal-copy-btn" title="Copy password">📋</button>
+                                <button class="eye-btn" id="modal-toggle-btn" title="Show/Hide password">👁️</button>
+                            </div>
+                        </div>
+                        
+                        <div class="modal-actions" id="modal-actions">
+                            <button id="modal-edit-btn" class="action-btn edit-btn">Edit</button>
+                            <button id="modal-delete-btn" class="action-btn delete-btn modal-delete-margin">Delete</button>
+                            <button id="modal-confirm-btn" class="action-btn edit-btn hidden modal-delete-margin">Confirm</button>
+                            <button id="modal-cancel-btn" class="action-btn delete-btn hidden modal-delete-margin">Cancel</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
     }
 
     afterRender() {
         this.loadItems();
+        
         // Navigate to Settings on click
         const settingsLink = document.getElementById('go-to-settings');
         if (settingsLink) {
@@ -89,6 +117,24 @@ export class Passwords {
             });
         }
 
+        // Modal Close logic using the 'active' class pattern
+        const modal = document.getElementById('item-modal');
+        const closeBtn = document.getElementById('close-modal');
+        if (closeBtn && modal) {
+            closeBtn.addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
+        }
+        
+        // Close modal when clicking outside the content area
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        }
+
         // Handle Search filtering
         const searchInput = document.getElementById('vault-search') as HTMLInputElement;
         if (searchInput) {
@@ -116,10 +162,10 @@ export class Passwords {
                 let hasVisibleRows = false;
                 
                 rows.forEach((row) => {
-                    // Extract text content from the relevant cells safely
-                    const url = row.querySelector('.site-url')?.textContent?.toLowerCase() || '';
-                    const username = row.querySelector('.username-cell')?.textContent?.toLowerCase() || '';
-                    const password = row.querySelector('.password-text')?.textContent?.toLowerCase() || '';
+                    // Extract text content from data attributes to preserve search functionality
+                    const url = (row as HTMLElement).dataset.url?.toLowerCase() || '';
+                    const username = (row as HTMLElement).dataset.username?.toLowerCase() || '';
+                    const password = (row as HTMLElement).dataset.password?.toLowerCase() || '';
 
                     // Check if search term exists in any of the targeted fields
                     if (url.includes(searchTerm) || username.includes(searchTerm) || password.includes(searchTerm)) {
@@ -134,7 +180,7 @@ export class Passwords {
                 if (!hasVisibleRows && rows.length > 0) {
                     const noResultsTr = document.createElement('tr');
                     noResultsTr.className = 'state-message empty no-results-message';
-                    noResultsTr.innerHTML = '<td colspan="4" class="state-message empty">No results found.</td>';
+                    noResultsTr.innerHTML = '<td class="state-message empty">No results found.</td>';
                     listContainer.appendChild(noResultsTr);
                 }
             });
@@ -146,7 +192,6 @@ export class Passwords {
         if (!listContainer) return;
 
         try {
-            // FIX: No longer retrieving masterPassword from storage.
             // We call getAllItems() directly. It will throw if session is expired.
             const items = await vaultRepository.getAllItems();
             
@@ -155,7 +200,7 @@ export class Passwords {
 
             if (items.length === 0) {
                 const tr = document.createElement('tr');
-                tr.innerHTML = '<td colspan="4" class="state-message empty">No passwords saved yet.</td>';
+                tr.innerHTML = '<td class="state-message empty">No passwords saved yet.</td>';
                 listContainer.appendChild(tr);
                 return;
             }
@@ -165,6 +210,15 @@ export class Passwords {
 
             for (const item of items) {
                 const tr = document.createElement('tr');
+                
+                // Add data attributes to row for search functionality
+                tr.dataset.url = item.url;
+                tr.dataset.username = item.username;
+                tr.dataset.password = item.password;
+                tr.classList.add('clickable-row');
+
+                // Attach click listener correctly
+                tr.addEventListener('click', () => this.openModal(item, tr));
 
                 // Column 'Site' - Added Status Icon
                 const tdSite = document.createElement('td');
@@ -191,138 +245,6 @@ export class Passwords {
                 tdSite.appendChild(divSiteWrapper);
                 tr.appendChild(tdSite);
 
-                // Column 'Username'
-                const tdUser = document.createElement('td');
-                tdUser.className = 'username-cell';
-                tdUser.textContent = item.username;
-                tr.appendChild(tdUser);
-
-                // Column 'Password'
-                const tdPass = document.createElement('td');
-                const divWrapper = document.createElement('div');
-                divWrapper.className = 'password-wrapper';
-                
-                const spanText = document.createElement('span');
-                spanText.className = 'password-text';
-                spanText.textContent = item.password;
-                
-                const spanMask = document.createElement('span');
-                spanMask.className = 'password-mask';
-                spanMask.textContent = '••••••••';
-
-                const btnCopyIcon = document.createElement('button');
-                btnCopyIcon.className = 'copy-icon-btn';
-                btnCopyIcon.innerHTML = '📋';
-                btnCopyIcon.title = "Copy password";
-
-                btnCopyIcon.onclick = async (e) => {
-                    e.stopPropagation();
-                    try {
-                        await navigator.clipboard.writeText(item.password);
-                        
-                        btnCopyIcon.innerHTML = '✅';
-                        btnCopyIcon.classList.add('success');
-
-                        setTimeout(() => {
-                            btnCopyIcon.innerHTML = '📋';
-                            btnCopyIcon.classList.remove('success');
-                        }, 2000);
-                        
-                    } catch (err) {
-                        console.error('Failed to copy:', err);
-                    }
-                };
-
-                const btnToggle = document.createElement('button');
-                btnToggle.className = 'eye-btn'; 
-                btnToggle.innerHTML = '👁️';
-                btnToggle.title = "Show/Hide password";
-                
-                btnToggle.onclick = (e) => {
-                    e.stopPropagation(); 
-                    divWrapper.classList.toggle('revealed');
-                };
-
-                divWrapper.appendChild(spanText);
-                divWrapper.appendChild(spanMask);
-                divWrapper.appendChild(btnCopyIcon);
-                divWrapper.appendChild(btnToggle);
-                
-                tdPass.appendChild(divWrapper);
-                tr.appendChild(tdPass);
-
-                // Table column 'Action'
-                const tdAction = document.createElement('td');
-                tdAction.className = 'text-right action-cell';
-
-                // Edit button
-                const btnEdit = document.createElement('button');
-                btnEdit.className = 'action-btn edit-btn';
-                btnEdit.textContent = 'Edit';
-
-                btnEdit.onclick = async () => {
-                    // Store ID of item for edit in sessionData
-                    await chrome.storage.session.set({ 'editingItemId': item.id });
-                    this.navigate('/editItem');
-                };
-
-                // Delete button
-                const btnDelete = document.createElement('button');
-                btnDelete.className = 'action-btn delete-btn';
-                btnDelete.textContent = 'Delete';
-                btnDelete.onclick = () => {
-                    // Hide Edit/Delete, show Confirm/Cancel using utility class
-                    btnEdit.classList.add('hidden');
-                    btnDelete.classList.add('hidden');
-                    btnConfirm.classList.remove('hidden');
-                    btnCancel.classList.remove('hidden');
-                };
-
-                // Confirm button (hidden by default)
-                const btnConfirm = document.createElement('button');
-                btnConfirm.className = 'action-btn edit-btn hidden';
-                btnConfirm.textContent = 'Confirm';
-
-                btnConfirm.onclick = async () => {
-                    try {
-                        // Wait for the item to be completely deleted from DB
-                        await vaultRepository.deleteItem(item.id);
-                        
-                        // Delete element from DOM
-                        tr.remove(); 
-                        showToastMessage('Item deleted successfully.', ToastType.SUCCESS, 2000);
-                        
-                        // Show 'no password' if table is empty after deletion 
-                        if (listContainer.children.length === 0) {
-                            const emptyTr = document.createElement('tr');
-                            emptyTr.innerHTML = '<td colspan="4" class="state-message empty">No passwords saved yet.</td>';
-                            listContainer.appendChild(emptyTr);
-                        }
-                    } catch (error) {
-                        console.error(error);
-                        showToastMessage('Failed to delete item.', ToastType.ERROR, 2500);
-                    }
-                }
-
-                // Cancel button (hidden by default)
-                const btnCancel = document.createElement('button');
-                btnCancel.className = 'action-btn delete-btn hidden';
-                btnCancel.textContent = 'Cancel';
-
-                btnCancel.onclick = () => {
-                    // Show Edit/Delete, hide Confirm/Cancel using utility class
-                    btnEdit.classList.remove('hidden');
-                    btnDelete.classList.remove('hidden');
-                    btnConfirm.classList.add('hidden');
-                    btnCancel.classList.add('hidden');
-                }
-
-                tdAction.appendChild(btnEdit);
-                tdAction.appendChild(btnDelete);
-                tdAction.appendChild(btnConfirm);
-                tdAction.appendChild(btnCancel);
-                tr.appendChild(tdAction);
-
                 fragment.appendChild(tr);
             }
 
@@ -338,8 +260,119 @@ export class Passwords {
                  this.navigate('/login');
                  return;
             }
-            listContainer.innerHTML = '<tr><td colspan="4" class="error-message">Error loading vault.</td></tr>';
+            listContainer.innerHTML = '<tr><td class="error-message">Error loading vault.</td></tr>';
         }
+    }
+
+    private openModal(item: VaultItem, tr: HTMLElement) {
+        const modal = document.getElementById('item-modal');
+        if (!modal) {
+            console.error("Modal container not found!");
+            return;
+        }
+
+        // Get modal elements
+        const siteTitle = document.getElementById('modal-site-title');
+        const usernameVal = document.getElementById('modal-username-val');
+        const passwordVal = document.getElementById('modal-password-val');
+        
+        // Securely populate data using textContent to prevent HTML injection issues
+        if (siteTitle) siteTitle.textContent = item.url;
+        if (usernameVal) usernameVal.textContent = item.username;
+        if (passwordVal) passwordVal.textContent = item.password;
+
+        // Reset password visibility
+        const passWrapper = document.getElementById('modal-pass-wrapper');
+        if (passWrapper) passWrapper.classList.remove('revealed');
+
+        // Bind copy event securely overriding any previous triggers
+        const btnCopy = document.getElementById('modal-copy-btn');
+        if (btnCopy) {
+            btnCopy.onclick = async (e) => {
+                e.stopPropagation();
+                try {
+                    await navigator.clipboard.writeText(item.password);
+                    btnCopy.innerHTML = '✅';
+                    btnCopy.classList.add('success');
+                    setTimeout(() => {
+                        btnCopy.innerHTML = '📋';
+                        btnCopy.classList.remove('success');
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                }
+            };
+        }
+
+        // Bind toggle event
+        const btnToggle = document.getElementById('modal-toggle-btn');
+        if (btnToggle && passWrapper) {
+            btnToggle.onclick = (e) => {
+                e.stopPropagation(); 
+                passWrapper.classList.toggle('revealed');
+            };
+        }
+
+        // Set up action buttons
+        const btnEdit = document.getElementById('modal-edit-btn');
+        const btnDelete = document.getElementById('modal-delete-btn');
+        const btnConfirm = document.getElementById('modal-confirm-btn');
+        const btnCancel = document.getElementById('modal-cancel-btn');
+
+        if (btnEdit && btnDelete && btnConfirm && btnCancel) {
+            // Reset visibility states using the 'hidden' utility class for inner elements
+            btnEdit.classList.remove('hidden');
+            btnDelete.classList.remove('hidden');
+            btnConfirm.classList.add('hidden');
+            btnCancel.classList.add('hidden');
+
+            btnEdit.onclick = async () => {
+                // Store ID of item for edit in sessionData
+                await chrome.storage.session.set({ 'editingItemId': item.id });
+                this.navigate('/editItem');
+            };
+
+            btnDelete.onclick = () => {
+                // Hide Edit/Delete, show Confirm/Cancel
+                btnEdit.classList.add('hidden');
+                btnDelete.classList.add('hidden');
+                btnConfirm.classList.remove('hidden');
+                btnCancel.classList.remove('hidden');
+            };
+
+            btnCancel.onclick = () => {
+                // Show Edit/Delete, hide Confirm/Cancel
+                btnEdit.classList.remove('hidden');
+                btnDelete.classList.remove('hidden');
+                btnConfirm.classList.add('hidden');
+                btnCancel.classList.add('hidden');
+            };
+
+            btnConfirm.onclick = async () => {
+                try {
+                    // Wait for the item to be completely deleted from DB
+                    await vaultRepository.deleteItem(item.id);
+                    
+                    // Delete element from DOM and close modal using 'active' class
+                    tr.remove(); 
+                    modal.classList.remove('active');
+                    showToastMessage('Item deleted successfully.', ToastType.SUCCESS, 2000);
+                    
+                    // Show 'no password' if table is empty after deletion 
+                    const listContainer = document.getElementById('password-list');
+                    if (listContainer && listContainer.children.length === 0) {
+                        const emptyTr = document.createElement('tr');
+                        emptyTr.innerHTML = '<td class="state-message empty">No passwords saved yet.</td>';
+                        listContainer.appendChild(emptyTr);
+                    }
+                } catch (error) {
+                    console.error(error);
+                    showToastMessage('Failed to delete item.', ToastType.ERROR, 2500);
+                }
+            };
+        }
+        
+        modal.classList.add('active');
     }
 
     // New method to handle the background audit update
