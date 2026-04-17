@@ -46,7 +46,7 @@ The application features a custom-built Single Page Application (SPA) interface 
 
 Cryptono takes security seriously. Here is how your data is handled:
 
-1.  **Key Derivation:** Your master password is never stored. We use **Argon2id** (implemented in Rust/WASM) for superior resistance against hardware-accelerated attacks.
+1.  **Key Derivation:** Your master password is never stored. We use **Argon2id** (implemented in C++/WASM) for superior resistance against hardware-accelerated attacks.
 2.  **Privacy-Preserving Audit:** When checking for leaked passwords, we use **k-Anonymity**. Only the first 5 characters of your password's SHA-1 hash are sent to the HIBP API; the actual comparison happens locally.
 3.  **Account Recovery:** Using **Shamir's Secret Sharing (SSS)**, your recovery key can be distributed into shards, ensuring no single shard reveals the key.
 4.  **Encryption:** All vault items are encrypted using **AES-GCM (256-bit)** with unique Initialization Vectors (IV) for every item.
