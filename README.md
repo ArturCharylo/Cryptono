@@ -13,31 +13,32 @@ The application features a custom-built Single Page Application (SPA) interface 
 ### ✅ Currently Implemented
 
 - **Zero-Knowledge Architecture:** Data is encrypted/decrypted locally. We never see your master password.
-- **Modern Encryption:** Uses **AES-GCM (256-bit)** for data and **PBKDF2** for key derivation.
+- **State-of-the-Art Encryption:** Uses **Argon2id (via WASM)** for master key derivation to resist GPU brute-force attacks and **AES-GCM (256-bit)** for data encryption.
+- **Security Audit:** Built-in health check that identifies weak passwords and checks for leaks using the **Have I Been Pwned** database with privacy-preserving **k-Anonymity**.
+- **Account Recovery (SSS):** Advanced recovery system based on **Shamir's Secret Sharing**, allowing you to split your recovery key into multiple shards.
+- **Secure Export:** Export your vault to encrypted binary files for safe backups.
 - **Smart Autofill:** Automatically detects login fields and fills credentials matching the current domain.
-- **Password Generator:** Built-in tool to generate strong, random passwords (configurable length and complexity).
-- **Vault Management:** Add, edit, delete, and copy credentials to clipboard.
-- **Sleek UI:** Custom Glassmorphism interface fully written in TypeScript and CSS variables.
 - **Session Security:** Master password is held only in session memory (`chrome.storage.session`) and cleared on browser restart or logout.
+- **Sleek UI:** Custom Glassmorphism interface fully written in Vanilla TypeScript and CSS variables.
 
-### 🚀 Roadmap / Planned
+## 🚀 Roadmap / Planned
 
 - [ ] Search and filtering of vault items.
-- [ ] Import/Export functionality (encrypted JSON).
-- [ ] Password strength analysis for existing items.
 - [ ] Secure synchronization (optional cloud backup).
+- [ ] Mobile companion app.
 
 ---
 
 ## 🏗️ Tech Stack
 
-| Area             | Technology                                                  |
-| ---------------- | ----------------------------------------------------------- |
-| **Core**         | TypeScript (Vanilla, no framework)                          |
-| **Build Tool**   | Vite + @crxjs/vite-plugin                                   |
-| **Styling**      | CSS3 (Variables, Flexbox, Glassmorphism)                    |
-| **Storage**      | IndexedDB (Persistent) + Chrome Storage Session (Ephemeral) |
-| **Cryptography** | Web Crypto API (SubtleCrypto)                               |
+| Area             | Technology                                                                 |
+| ---------------- | -------------------------------------------------------------------------- |
+| **Core** | TypeScript (Vanilla, no framework)                               |
+| **Performance** | **WebAssembly (WASM)** for heavy cryptographic tasks and auditing |
+| **Cryptography** | Web Crypto API, **Argon2id**, and **Shamir's Secret Sharing** |
+| **Security API** | **Have I Been Pwned (HIBP)** via k-Anonymity                     |
+| **Storage** | IndexedDB (Persistent) + Chrome Storage Session (Ephemeral)      |
+| **Styling** | CSS3 (Variables, Flexbox, Glassmorphism)                         |
 
 ---
 
@@ -45,10 +46,11 @@ The application features a custom-built Single Page Application (SPA) interface 
 
 Cryptono takes security seriously. Here is how your data is handled:
 
-1.  **Key Derivation:** Your master password is never stored. It is used to derive a cryptographic key using **PBKDF2** (SHA-256, 1 milion iterations, random salt).
-2.  **Encryption:** Vault items (URL, Username, Password) are encrypted using **AES-GCM**.
-3.  **Storage:** The encrypted blobs (ciphertext + IV + salt) are stored in the browser's **IndexedDB**.
-4.  **Isolation:** The extension runs in a sandboxed environment consistent with Chrome's MV3 security standards.
+1.  **Key Derivation:** Your master password is never stored. We use **Argon2id** (implemented in Rust/WASM) for superior resistance against hardware-accelerated attacks.
+2.  **Privacy-Preserving Audit:** When checking for leaked passwords, we use **k-Anonymity**. Only the first 5 characters of your password's SHA-1 hash are sent to the HIBP API; the actual comparison happens locally.
+3.  **Account Recovery:** Using **Shamir's Secret Sharing (SSS)**, your recovery key can be distributed into shards, ensuring no single shard reveals the key.
+4.  **Encryption:** All vault items are encrypted using **AES-GCM (256-bit)** with unique Initialization Vectors (IV) for every item.
+5.  **Storage Isolation:** Encrypted blobs (ciphertext + IV + salt) are stored in the browser's **IndexedDB**, isolated within the extension's sandbox.
 
 ---
 
