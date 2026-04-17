@@ -20,10 +20,10 @@ The application features a custom-built Single Page Application (SPA) interface 
 - **Smart Autofill:** Automatically detects login fields and fills credentials matching the current domain.
 - **Session Security:** Master password is held only in session memory (`chrome.storage.session`) and cleared on browser restart or logout.
 - **Sleek UI:** Custom Glassmorphism interface fully written in Vanilla TypeScript and CSS variables.
+- **Search and filtering of vault items**.
 
 ## 🚀 Roadmap / Planned
 
-- [ ] Search and filtering of vault items.
 - [ ] Secure synchronization (optional cloud backup).
 - [ ] Mobile companion app.
 
