@@ -117,7 +117,8 @@ export class Settings {
 
                 ${this.passwordChange.getModalTemplate()}
                 ${this.pinSetup.getModalTemplate()}
-                ${this.backupCodesSetup.getModalTemplate()} </div>
+                ${this.backupCodesSetup.getModalTemplate()}
+                ${this.dataManagement.getModalTemplate()} </div>
         `;
     }
 

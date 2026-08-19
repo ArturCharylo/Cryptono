@@ -4,17 +4,56 @@ import initWasm, { compress_brotli, decompress_brotli, decompress_deflate } from
 import type { ImportedVaultItem } from '../../types'; 
 
 export class DataManagement {
+    private modal: HTMLElement | null = null;
+
     constructor(private importBtnId: string, private exportBtnId: string) {}
+
+    getModalTemplate(): string {
+        return `
+        <div id="export-options-modal" class="modal">
+            <div class="modal-content">
+                <h3>Export Vault Data</h3>
+                <p class="modal-description">Choose how you want to export your vault data.</p>
+                <div class="modal-actions export-options-list">
+                    <button id="export-bin-btn" class="btn-primary export-btn-full">Export Encrypted (.bin)</button>
+                    <button id="export-json-btn" class="btn-primary export-btn-full">Export Unencrypted JSON (.json)</button>
+                    <button id="export-cancel-btn" class="btn-secondary export-btn-full">Cancel</button>
+                </div>
+            </div>
+        </div>`;
+    }
 
     bindEvents() {
         const importBtn = document.getElementById(this.importBtnId);
         const exportBtn = document.getElementById(this.exportBtnId);
 
-        exportBtn?.addEventListener('click', () => this.handleExport());
+        this.modal = document.getElementById('export-options-modal');
+
+        const exportBinBtn = document.getElementById('export-bin-btn');
+        const exportJsonBtn = document.getElementById('export-json-btn');
+        const exportCancelBtn = document.getElementById('export-cancel-btn');
+
+        exportBtn?.addEventListener('click', () => this.openModal());
         importBtn?.addEventListener('click', () => this.handleImport());
+
+        exportBinBtn?.addEventListener('click', () => this.handleExportEncrypted());
+        exportJsonBtn?.addEventListener('click', () => this.handleExportJson());
+        exportCancelBtn?.addEventListener('click', () => this.closeModal());
     }
 
-    private async handleExport() {
+    private openModal() {
+        if (this.modal) {
+            this.modal.classList.add('active');
+        }
+    }
+
+    private closeModal() {
+        if (this.modal) {
+            this.modal.classList.remove('active');
+        }
+    }
+
+    private async handleExportEncrypted() {
         try {
             const items = await vaultRepository.getAllItems();
             if (!items || items.length === 0) {
@@ -26,7 +65,7 @@ export class DataManagement {
 
             // The imported WASM module is written in Rust and compiled to WebAssembly.
             // It provides Brotli compression and decompression functions.
-            await initWasm('/cryptono_zip_bg.wasm');
+            await initWasm({ module_or_path: '/cryptono_zip_bg.wasm' });
 
             // Convert string to Uint8Array for the Rust function
             const encoder = new TextEncoder();
@@ -48,9 +87,36 @@ export class DataManagement {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
+            this.closeModal();
         } catch (error) {
             console.error('Export failed:', error);
             showToastMessage('Failed to export data.', ToastType.ERROR, 3000);
+        }
+    }
+
+    private async handleExportJson() {
+        try {
+            const items = await vaultRepository.getAllItems();
+            if (!items || items.length === 0) {
+                showToastMessage('No items to export.', ToastType.NORMAL, 3000);
+                return;
+            }
+
+            const dataStr = JSON.stringify(items, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `cryptono_backup_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            this.closeModal();
+        } catch (error) {
+            console.error('Export failed:', error);
+            showToastMessage('Failed to export JSON data.', ToastType.ERROR, 3000);
         }
     }
 

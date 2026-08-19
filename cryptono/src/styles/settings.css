@@ -576,3 +576,11 @@ input:checked + .slider:before {
     background: var(--glass-border-highlight);
     border-radius: 4px;
 }
+.export-options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.export-btn-full {
+    width: 100%;
+}
