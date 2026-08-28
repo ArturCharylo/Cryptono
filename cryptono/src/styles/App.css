@@ -97,7 +97,7 @@
 body {
     margin: 0;
     padding: 0;
-    width: fit-content;
+    width: 100%;
     background: var(--app-bg-gradient);
     background-attachment: fixed; 
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -130,7 +130,7 @@ body {
 body {
     margin: 0;
     padding: 0;
-    width: fit-content;
+    width: 100%;
     background: var(--app-bg-gradient);
     background-attachment: fixed; 
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
