@@ -177,18 +177,77 @@ export class CryptoService {
         return salt as Uint8Array<ArrayBuffer>;
     }
     
+    /**
+     * Standard Web Crypto HMAC-SHA256 blind index calculation.
+     * Replaces ad-hoc string concatenation with cryptographic MAC.
+     */
     async getBlindIndex(masterKey: CryptoKey, data: string): Promise<string> {
-         const keyBytes = await globalThis.crypto.subtle.exportKey("raw", masterKey);
-         // keyBytes is already ArrayBuffer, so it's safe
-         const keyString = buffToBase64(keyBytes); 
-         
-         const encoder = new TextEncoder();
-         const dataBuffer = encoder.encode(keyString + data);
-         const hashBuffer = await globalThis.crypto.subtle.digest(CRYPTO_KEYS.ALGO_HASH, dataBuffer);
-         
-         return Array.from(new Uint8Array(hashBuffer))
+        const rawKey = await globalThis.crypto.subtle.exportKey("raw", masterKey);
+        const hmacKey = await globalThis.crypto.subtle.importKey(
+            "raw",
+            rawKey,
+            { name: "HMAC", hash: { name: "SHA-256" } },
+            false,
+            ["sign"]
+        );
+        const encoder = new TextEncoder();
+        const signature = await globalThis.crypto.subtle.sign(
+            "HMAC",
+            hmacKey,
+            encoder.encode(data)
+        );
+        return Array.from(new Uint8Array(signature))
             .map(b => b.toString(16).padStart(2, '0'))
             .join('');
+    }
+
+    /**
+     * Encrypts compressed backup data using AES-256-GCM.
+     * Derives encryption key with Argon2id using a newly generated random salt.
+     * Output format: [16 bytes salt][12 bytes iv][ciphertext + tag]
+     */
+    async encryptBackup(data: Uint8Array, password: string): Promise<Uint8Array> {
+        const salt = this.generateSalt();
+        const iv = globalThis.crypto.getRandomValues(new Uint8Array(CRYPTO_KEYS.IV_LENGTH));
+        const key = await this.deriveMasterKey(password, salt);
+
+        const ciphertextBuffer = await globalThis.crypto.subtle.encrypt(
+            { name: CRYPTO_KEYS.ALGO_AES, iv: iv },
+            key,
+            data
+        );
+
+        const cipherBytes = new Uint8Array(ciphertextBuffer);
+        const result = new Uint8Array(salt.length + iv.length + cipherBytes.length);
+        result.set(salt, 0);
+        result.set(iv, salt.length);
+        result.set(cipherBytes, salt.length + iv.length);
+        return result;
+    }
+
+    /**
+     * Decrypts encrypted backup package [salt (16)][iv (12)][ciphertext].
+     * Derives key using Argon2id with embedded salt and decrypts using AES-256-GCM.
+     */
+    async decryptBackup(encryptedPackage: Uint8Array, password: string): Promise<Uint8Array> {
+        const saltLength = CRYPTO_KEYS.SALT_LENGTH;
+        const ivLength = CRYPTO_KEYS.IV_LENGTH;
+        if (encryptedPackage.length < saltLength + ivLength + 16) {
+            throw new Error("Invalid or corrupted encrypted backup file");
+        }
+
+        const salt = encryptedPackage.slice(0, saltLength);
+        const iv = encryptedPackage.slice(saltLength, saltLength + ivLength);
+        const ciphertext = encryptedPackage.slice(saltLength + ivLength);
+
+        const key = await this.deriveMasterKey(password, salt);
+        const decryptedBuffer = await globalThis.crypto.subtle.decrypt(
+            { name: CRYPTO_KEYS.ALGO_AES, iv: iv },
+            key,
+            ciphertext
+        );
+
+        return new Uint8Array(decryptedBuffer);
     }
 
     async derivePinKey(pin: string, salt: BufferSource): Promise<CryptoKey> {

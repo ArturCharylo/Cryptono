@@ -1,5 +1,6 @@
 import type { CustomField } from './types';
 import { getFieldLabel, scoreUsernameInput } from './heuristics';
+import { showSaveConfirmationToast } from './ui';
 
 export const initAutoSave = () => {
     document.addEventListener('submit', async (e) => {
@@ -64,19 +65,24 @@ export const initAutoSave = () => {
                 }
             });
 
-            try {
-                await chrome.runtime.sendMessage({
-                    type: 'AUTOSAVE_REQUEST',
-                    data: {
-                        url: url,
-                        username: usernameInput.value,
-                        password: passwordInput.value,
-                        fields: collectedFields
-                    }
-                });
-            } catch (err) {
-                console.error('Cryptono AutoSave error:', err);
-            }
+            const credentialsToSave = {
+                url: url,
+                username: usernameInput.value,
+                password: passwordInput.value,
+                fields: collectedFields
+            };
+
+            // Require explicit user confirmation before saving credentials to the vault
+            showSaveConfirmationToast(credentialsToSave, async () => {
+                try {
+                    await chrome.runtime.sendMessage({
+                        type: 'SAVE_CREDENTIALS',
+                        data: credentialsToSave
+                    });
+                } catch (err) {
+                    console.error('Cryptono AutoSave error:', err);
+                }
+            });
         }
     }, true);
 };
