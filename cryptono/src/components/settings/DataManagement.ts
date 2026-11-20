@@ -1,4 +1,5 @@
 import { vaultRepository } from '../../repositories/VaultRepository';
+import { cryptoService } from '../../services/CryptoService';
 import { showToastMessage, ToastType } from '../../utils/messages';
 import initWasm, { compress_brotli, decompress_brotli, decompress_deflate } from '../../wasm/cryptono_zip';
 import type { ImportedVaultItem } from '../../types'; 
@@ -18,6 +19,21 @@ export class DataManagement {
                     <button id="export-bin-btn" class="btn-primary export-btn-full">Export Encrypted (.bin)</button>
                     <button id="export-json-btn" class="btn-primary export-btn-full">Export Unencrypted JSON (.json)</button>
                     <button id="export-cancel-btn" class="btn-secondary export-btn-full">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="backup-password-modal" class="modal">
+            <div class="modal-content">
+                <h3 id="backup-pwd-title">Backup Encryption Password</h3>
+                <p id="backup-pwd-desc" class="modal-description">Enter a password to encrypt this backup with AES-256-GCM.</p>
+                <div class="form-group">
+                    <input type="password" id="backup-pwd-input" class="modal-input" placeholder="Password (min 8 chars)" />
+                </div>
+                <p id="backup-pwd-error" class="modal-error-text hidden"></p>
+                <div class="modal-actions">
+                    <button id="backup-pwd-cancel" class="btn-secondary">Cancel</button>
+                    <button id="backup-pwd-confirm" class="btn-primary">Confirm</button>
                 </div>
             </div>
         </div>`;
@@ -53,6 +69,73 @@ export class DataManagement {
         }
     }
 
+    private promptForPassword(title: string, desc: string, buttonText: string): Promise<string | null> {
+        return new Promise((resolve) => {
+            const pwdModal = document.getElementById('backup-password-modal');
+            const titleEl = document.getElementById('backup-pwd-title');
+            const descEl = document.getElementById('backup-pwd-desc');
+            const inputEl = document.getElementById('backup-pwd-input') as HTMLInputElement;
+            const errorEl = document.getElementById('backup-pwd-error');
+            const cancelBtn = document.getElementById('backup-pwd-cancel');
+            const confirmBtn = document.getElementById('backup-pwd-confirm') as HTMLButtonElement;
+
+            if (!pwdModal || !inputEl || !confirmBtn || !cancelBtn) {
+                return resolve(null);
+            }
+
+            if (titleEl) titleEl.textContent = title;
+            if (descEl) descEl.textContent = desc;
+            confirmBtn.textContent = buttonText;
+            inputEl.value = '';
+            if (errorEl) {
+                errorEl.textContent = '';
+                errorEl.classList.add('hidden');
+            }
+
+            pwdModal.classList.add('active');
+            inputEl.focus();
+
+            const cleanup = () => {
+                pwdModal.classList.remove('active');
+                confirmBtn.removeEventListener('click', onConfirm);
+                cancelBtn.removeEventListener('click', onCancel);
+                inputEl.removeEventListener('keydown', onKeyDown);
+            };
+
+            const onConfirm = () => {
+                const pass = inputEl.value;
+                if (!pass || pass.length < 8) {
+                    if (errorEl) {
+                        errorEl.textContent = 'Password must be at least 8 characters long.';
+                        errorEl.classList.remove('hidden');
+                    }
+                    return;
+                }
+                cleanup();
+                resolve(pass);
+            };
+
+            const onCancel = () => {
+                cleanup();
+                resolve(null);
+            };
+
+            const onKeyDown = (e: KeyboardEvent) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    onConfirm();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    onCancel();
+                }
+            };
+
+            confirmBtn.addEventListener('click', onConfirm);
+            cancelBtn.addEventListener('click', onCancel);
+            inputEl.addEventListener('keydown', onKeyDown);
+        });
+    }
+
     private async handleExportEncrypted() {
         try {
             const items = await vaultRepository.getAllItems();
@@ -61,23 +144,27 @@ export class DataManagement {
                 return;
             }
 
+            this.closeModal();
+
+            const password = await this.promptForPassword(
+                'Set Backup Password',
+                'Enter a password to encrypt your vault backup with AES-256-GCM and Argon2id.',
+                'Encrypt & Export'
+            );
+            if (!password) return;
+
             const dataStr = JSON.stringify(items, null, 2);
 
-            // The imported WASM module is written in Rust and compiled to WebAssembly.
-            // It provides Brotli compression and decompression functions.
+            // 1. Compress using Brotli WASM module
             await initWasm({ module_or_path: '/cryptono_zip_bg.wasm' });
-
-            // Convert string to Uint8Array for the Rust function
             const encoder = new TextEncoder();
             const dataBytes = encoder.encode(dataStr);
-
-            // Compress the data using Brotli (quality: 11 is usually the max/standard for Brotli)
             const compressedData = compress_brotli(dataBytes, 11);
 
-            // Wrap the data in a new standard Uint8Array to satisfy TypeScript strict types
-            const standardBuffer = new Uint8Array(compressedData);
+            // 2. Encrypt compressed bytes with AES-256-GCM, prepending [salt][iv]
+            const encryptedBytes = await cryptoService.encryptBackup(new Uint8Array(compressedData), password);
 
-            const blob = new Blob([standardBuffer], { type: 'application/octet-stream' });
+            const blob = new Blob([encryptedBytes], { type: 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -87,10 +174,10 @@ export class DataManagement {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            this.closeModal();
+            showToastMessage('Backup encrypted & exported successfully!', ToastType.SUCCESS, 3000);
         } catch (error) {
             console.error('Export failed:', error);
-            showToastMessage('Failed to export data.', ToastType.ERROR, 3000);
+            showToastMessage('Failed to export encrypted data.', ToastType.ERROR, 3000);
         }
     }
 
@@ -154,12 +241,30 @@ export class DataManagement {
                             break;
                         }
                         case 'bin': {
-                            // Handle Brotli compressed files
+                            // Extract encrypted binary data
                             const resultBuffer = event.target?.result as ArrayBuffer;
-                            await initWasm('/cryptono_zip_bg.wasm');
-                            const uint8Array = new Uint8Array(resultBuffer);
-                            const decompressedBytes = decompress_brotli(uint8Array);
-                            
+                            const password = await this.promptForPassword(
+                                'Decrypt Backup',
+                                'Enter the password used to encrypt this .bin backup file.',
+                                'Decrypt & Import'
+                            );
+                            if (!password) return;
+
+                            let decompressedBytes: Uint8Array;
+                            try {
+                                // Decrypt AES-256-GCM package [salt][iv][ciphertext]
+                                const decryptedBytes = await cryptoService.decryptBackup(
+                                    new Uint8Array(resultBuffer),
+                                    password
+                                );
+                                await initWasm({ module_or_path: '/cryptono_zip_bg.wasm' });
+                                decompressedBytes = decompress_brotli(decryptedBytes);
+                            } catch (decErr) {
+                                console.error('Decryption/decompression failed:', decErr);
+                                showToastMessage('Decryption failed: Incorrect password or corrupt file.', ToastType.ERROR, 4000);
+                                return;
+                            }
+
                             const decoder = new TextDecoder();
                             const jsonString = decoder.decode(decompressedBytes);
                             importedItems = JSON.parse(jsonString) as ImportedVaultItem[];
@@ -168,7 +273,7 @@ export class DataManagement {
                         case 'deflate': {
                             // Handle Deflate compressed files
                             const resultBuffer = event.target?.result as ArrayBuffer;
-                            await initWasm('/cryptono_zip_bg.wasm');
+                            await initWasm({ module_or_path: '/cryptono_zip_bg.wasm' });
                             const uint8Array = new Uint8Array(resultBuffer);
                             const decompressedBytes = decompress_deflate(uint8Array);
                             

@@ -72,16 +72,37 @@ export const createSuggestionDropdown = (input: HTMLInputElement, username: stri
     dropdown.style.top = `${rect.bottom + window.scrollY + 4}px`;
     dropdown.style.left = `${rect.left + window.scrollX}px`;
 
-    dropdown.innerHTML = `
-        <div class="row">
-            <span class="logo">🔒</span>
-            <div class="text">
-                <span class="user">${username || 'Unknown User'}</span>
-                <span class="hint">Click to autofill</span>
-            </div>
-        </div>
-        <div class="close-btn" title="Close">&times;</div>
-    `;
+    // Secure DOM construction using textContent to prevent DOM XSS
+    const row = document.createElement('div');
+    row.className = 'row';
+
+    const logo = document.createElement('span');
+    logo.className = 'logo';
+    logo.textContent = '🔒';
+
+    const textDiv = document.createElement('div');
+    textDiv.className = 'text';
+
+    const userSpan = document.createElement('span');
+    userSpan.className = 'user';
+    userSpan.textContent = username || 'Unknown User';
+
+    const hintSpan = document.createElement('span');
+    hintSpan.className = 'hint';
+    hintSpan.textContent = 'Click to autofill';
+
+    textDiv.appendChild(userSpan);
+    textDiv.appendChild(hintSpan);
+    row.appendChild(logo);
+    row.appendChild(textDiv);
+
+    const closeBtn = document.createElement('div');
+    closeBtn.className = 'close-btn';
+    closeBtn.title = 'Close';
+    closeBtn.textContent = '×';
+
+    dropdown.appendChild(row);
+    dropdown.appendChild(closeBtn);
 
     const close = () => {
         host.remove();
@@ -100,14 +121,11 @@ export const createSuggestionDropdown = (input: HTMLInputElement, username: stri
         close();
     });
 
-    const closeBtn = dropdown.querySelector('.close-btn');
-    if (closeBtn) {
-        closeBtn.addEventListener('mousedown', (e) => {
-            e.stopPropagation(); 
-            e.preventDefault();
-            close();
-        });
-    }
+    closeBtn.addEventListener('mousedown', (e) => {
+        e.stopPropagation(); 
+        e.preventDefault();
+        close();
+    });
 
     shadow.appendChild(style);
     shadow.appendChild(dropdown);
@@ -207,14 +225,33 @@ export const createGeneratorDropdown = (input: HTMLInputElement, onGenerate: () 
     dropdown.style.top = `${rect.bottom + window.scrollY + 4}px`;
     dropdown.style.left = `${rect.left + window.scrollX}px`;
     
-    dropdown.innerHTML = `
-        <span class="icon">🎲</span>
-        <div class="text-container">
-            <span class="title">Generate Strong Password</span>
-            <span class="hint">Click to fill & copy</span>
-        </div>
-        <div class="close-btn" title="Close">&times;</div>
-    `;
+    // Secure DOM construction using textContent to prevent DOM XSS
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'icon';
+    iconSpan.textContent = '🎲';
+
+    const textContainer = document.createElement('div');
+    textContainer.className = 'text-container';
+
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'title';
+    titleSpan.textContent = 'Generate Strong Password';
+
+    const hintSpan = document.createElement('span');
+    hintSpan.className = 'hint';
+    hintSpan.textContent = 'Click to fill & copy';
+
+    textContainer.appendChild(titleSpan);
+    textContainer.appendChild(hintSpan);
+
+    const closeBtn = document.createElement('div');
+    closeBtn.className = 'close-btn';
+    closeBtn.title = 'Close';
+    closeBtn.textContent = '×';
+
+    dropdown.appendChild(iconSpan);
+    dropdown.appendChild(textContainer);
+    dropdown.appendChild(closeBtn);
 
     const close = () => {
         host.remove();
@@ -233,14 +270,11 @@ export const createGeneratorDropdown = (input: HTMLInputElement, onGenerate: () 
         close();
     });
 
-    const closeBtn = dropdown.querySelector('.close-btn');
-    if (closeBtn) {
-        closeBtn.addEventListener('mousedown', (e) => {
-            e.stopPropagation(); 
-            e.preventDefault();
-            close();
-        });
-    }
+    closeBtn.addEventListener('mousedown', (e) => {
+        e.stopPropagation(); 
+        e.preventDefault();
+        close();
+    });
 
     shadow.appendChild(style);
     shadow.appendChild(dropdown);

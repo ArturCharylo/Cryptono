@@ -71,12 +71,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const runAsyncMessage = async () => {
     try {
       if (message.type === 'AUTOFILL_REQUEST') {
-        // We await the result instead of passing the direct callback
-        return await new Promise(resolve => handleAutofill(message.url, resolve));
+        // Derive target URL strictly from sender, ignoring untrusted message payload
+        return await new Promise(resolve => handleAutofill(_sender, resolve));
       }
       
-      if (message.type === 'AUTOSAVE_REQUEST') {
-        return await handleInputSave(message.data, _sender.tab?.id);
+      if (message.type === 'AUTOSAVE_REQUEST' || message.type === 'SAVE_CREDENTIALS') {
+        return await handleInputSave(message.data, _sender.tab?.id, _sender);
       }
     } catch (e) {
        console.error("Cryptono Background handling error:", e);

@@ -4,7 +4,8 @@ import type { ToastData, VaultItem } from '../types';
 
 export async function handleInputSave(
     data: { url: string; username: string; password: string; fields?: Array<{name: string; value: string; type: string}> },
-    tabId?: number // Explicitly require the tab ID from the sender
+    tabId?: number, // Explicitly require the tab ID from the sender
+    sender?: chrome.runtime.MessageSender
 ): Promise<object> {
      try {
         // Check if user is logged in by attempting to retrieve the key from SessionService
@@ -17,19 +18,28 @@ export async function handleInputSave(
             return { success: false, error: 'LOCKED' };
         }
 
+        // Verify and normalize domain from sender to prevent spoofing
+        let verifiedUrl = data.url;
+        if (sender?.tab?.url) {
+            try {
+                verifiedUrl = new URL(sender.tab.url).hostname;
+            } catch (_e) {
+                // Keep data.url fallback
+            }
+        }
+
         // Find matching data once the URL is matched
-        // Updated signature: removed masterPassword argument
-        const existingItem = await vaultRepository.findItemByUrlAndUsername(data.url, data.username);
+        const existingItem = await vaultRepository.findItemByUrlAndUsername(verifiedUrl, data.username);
 
         if (existingItem) {
             console.log('Cryptono: Credentials already exist for this user/site.');
             return { success: false, error: 'ALREADY_EXISTS' };
         }
 
-        // Creating a new item with the given data
+        // Creating a new item with the verified data
         const newItem: VaultItem = {
             id: crypto.randomUUID(),
-            url: data.url,
+            url: verifiedUrl,
             username: data.username,
             password: data.password,
             fields: data.fields,
@@ -37,15 +47,13 @@ export async function handleInputSave(
         };
 
         // Request to add newItem to the DB
-        // Updated signature: removed masterPassword argument, repository uses SessionService internally
         await vaultRepository.addItem(newItem);
         
-        console.log('Cryptono: AutoSaved new credentials!');
+        console.log('Cryptono: Saved new credentials after explicit user consent!');
         
         // Use provided tabId instead of unreliable active tab queries
         if (tabId) {
             // Store toast in chrome.storage.local to survive page redirects
-            // explicitly type the storage result so TS knows what to expect
             const storageRes = await chrome.storage.local.get('cryptono_toasts') as {
                 cryptono_toasts?: ToastData[];
             };
@@ -58,7 +66,7 @@ export async function handleInputSave(
                 id: toastId,
                 message: 'Credentials saved!',
                 expiresAt: Date.now() + 4000,
-                domain: data.url
+                domain: verifiedUrl
             });
             await chrome.storage.local.set({ cryptono_toasts });
         }
@@ -66,7 +74,7 @@ export async function handleInputSave(
         return { success: true };
 
     } catch (error) {
-        console.error('Autofill error:', error);
+        console.error('AutoSave error:', error);
         return { success: false, error: 'UNKNOWN_ERROR' };
     }
 }

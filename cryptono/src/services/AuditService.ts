@@ -50,7 +50,9 @@ export class AuditService {
     // Fetch leaked suffixes using the first 5 characters of the SHA-1 hash
     private async checkPwnedPasswords(prefix: string, suffix: string): Promise<boolean> {
         try {
-            const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
+            const normalizedPrefix = prefix.trim().toUpperCase();
+            const normalizedSuffix = suffix.trim().toUpperCase();
+            const response = await fetch(`https://api.pwnedpasswords.com/range/${normalizedPrefix}`);
             if (!response.ok) {
                 console.error(`HIBP API error: ${response.status}`);
                 return false;
@@ -59,9 +61,13 @@ export class AuditService {
             const responseText = await response.text();
             
             // The API returns lines in the format: SUFFIX:COUNT
-            const leakedSuffixes = responseText.split('\n').map(line => line.split(':')[0]);
+            // Normalize lines: strip \r carriage returns and enforce uppercase hex comparison
+            const leakedSuffixes = responseText
+                .split('\n')
+                .map(line => line.trim().toUpperCase().split(':')[0])
+                .filter(s => s.length > 0);
             
-            return leakedSuffixes.includes(suffix);
+            return leakedSuffixes.includes(normalizedSuffix);
         } catch (error) {
             console.error('Failed to check password leaks:', error);
             return false;

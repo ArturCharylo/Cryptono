@@ -1,44 +1,60 @@
-import { defineConfig } from 'vite';
+import { defineConfig, normalizePath } from 'vite';
 import { resolve } from 'path';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import fs from 'fs';
 
 export default defineConfig({
+  root: resolve(__dirname, 'src/popup'),
   build: {
+    outDir: resolve(__dirname, 'dist'),
+    emptyOutDir: false,
     rollupOptions: {
       input: {
-        // Build background and popup using standard ES modules
-        background: resolve(__dirname, 'src/background/background.ts'),
-        popup: resolve(__dirname, 'src/popup/popup.ts'),
+        popup: resolve(__dirname, 'src/popup/popup.html'),
+        background: resolve(__dirname, 'src/background/background.ts')
       },
       output: {
         entryFileNames: '[name].js',
         chunkFileNames: 'assets/[name]-[hash].js',
-        format: 'es' 
+        assetFileNames: 'assets/[name]-[hash].[ext]'
       }
-    },
-    outDir: 'dist',
-    emptyOutDir: true 
+    }
   },
   plugins: [
     viteStaticCopy({
       targets: [
-        { // Argon2 WASM file from the npm package
-          src: 'node_modules/argon2-extension-mv3/dist/argon2_wasm.wasm',
-          dest: '.' 
+        {
+          src: normalizePath(resolve(__dirname, 'node_modules/argon2-extension-mv3/dist/argon2_wasm.wasm')),
+          dest: '.'
         },
         {
-          // Compressor WASM file
-          src: 'src/wasm/cryptono_zip_bg.wasm', 
-          dest: '.' 
+          // Audit WASM file
+          src: normalizePath(resolve(__dirname, 'src/wasm/cryptono_audit_bg.wasm')),
+          dest: '.'
         },
-        { // Auditor WASM file
-          src: 'src/wasm/cryptono_audit_bg.wasm',
+        {
+          // Audit TS Definitions
+          src: normalizePath(resolve(__dirname, 'src/wasm/cryptono_audit_bg.wasm.d.ts')),
           dest: '.'
         },
         {
           // Secret Sharing Scheme WASM file
-          src: 'src/wasm/cryptono_sss_bg.wasm.d.ts',
+          src: normalizePath(resolve(__dirname, 'src/wasm/cryptono_sss_bg.wasm')),
+          dest: '.'
+        },
+        {
+          // Secret Sharing Scheme WASM file
+          src: normalizePath(resolve(__dirname, 'src/wasm/cryptono_sss_bg.wasm.d.ts')),
+          dest: '.'
+        },
+        {
+          // Zip / Backup compression WASM file
+          src: normalizePath(resolve(__dirname, 'src/wasm/cryptono_zip_bg.wasm')),
+          dest: '.'
+        },
+        {
+          // Zip / Backup compression TS Definitions
+          src: normalizePath(resolve(__dirname, 'src/wasm/cryptono_zip_bg.wasm.d.ts')),
           dest: '.'
         }
       ]
@@ -50,7 +66,7 @@ export default defineConfig({
         const manifestSrc = resolve(__dirname, 'src/manifest.json');
         const manifestDest = resolve(__dirname, 'dist/manifest.json');
         if (fs.existsSync(manifestSrc)) {
-            fs.copyFileSync(manifestSrc, manifestDest);
+            fs.writeFileSync(manifestDest, fs.readFileSync(manifestSrc));
             console.log('✓ manifest.json copied');
         }
 
@@ -79,7 +95,7 @@ export default defineConfig({
             fs.mkdirSync(distStylesDir, { recursive: true });
           }
           fs.readdirSync(stylesDir).forEach(file => {
-            fs.copyFileSync(resolve(stylesDir, file), resolve(distStylesDir, file));
+            fs.writeFileSync(resolve(distStylesDir, file), fs.readFileSync(resolve(stylesDir, file)));
           });
           console.log('✓ Styles copied');
         }
